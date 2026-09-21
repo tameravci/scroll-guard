@@ -88,7 +88,7 @@
     for (const article of api.findPosts(root.document)) {
       const payload = analyzedPosts.get(article);
       if (
-        payload?.detection.isSlop &&
+        payload?.detection.isFlagged &&
         payload.parsed.handle.toLowerCase() === handle.toLowerCase()
       ) {
         mountFinding(article, payload, account);
@@ -160,7 +160,7 @@
       const account = await api.recordObservation({
         handle: parsed.handle,
         fingerprint,
-        flagged: detection.isSlop,
+        flagged: detection.isFlagged,
         families: detection.families,
         at: Date.now()
       });
@@ -169,7 +169,7 @@
         return;
       }
 
-      if (detection.isSlop) {
+      if (detection.isFlagged) {
         const payload = { detection, parsed };
         analyzedPosts.set(article, payload);
         article.dataset.slopSpotterFlagged = String(expectedGeneration);
@@ -180,7 +180,7 @@
       diagnosticOutcomes.set(article, {
         parsed: true,
         evidence: detection.evidence.length > 0,
-        highlighted: detection.isSlop,
+        highlighted: detection.isFlagged,
         error: false
       });
       placeEligibleSuggestion(parsed.handle, account);

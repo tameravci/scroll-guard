@@ -229,7 +229,7 @@
       element(
         "span",
         "",
-        `Jev: likely slop · ${Math.round(payload.detection.probability * 100)}%`
+        `Jev: ${payload.detection.isScam ? "possible scam" : "likely slop"} · ${Math.round(payload.detection.probability * 100)}%`
       ),
       element("span", "chevron", "⌄")
     );

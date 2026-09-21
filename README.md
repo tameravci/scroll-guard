@@ -24,16 +24,20 @@ and content-script access to `x.com`/`twitter.com`. API requests incur usage on 
 ## How detection works
 
 The background worker calls `POST https://api.typesafe.ai/v1/systemone` with
-`model: jev-latest` and two Choice questions: a slop/not-slop/uncertain verdict,
+`model: jev-latest` and two Choice questions: a scam/slop/not-slop/uncertain verdict,
 and a writing-problem category. See the [official API quickstart](https://docs.typesafe.ai/introduction/quickstart).
 The rubric asks Jev to judge substance in context, allowing ordinary conversation,
 humor, concrete information, and quotations being criticized. No phrase matching
 determines the verdict. The full rubric lives in `src/jev.js`.
 
-Flags require Jev to choose slop with probability at least 75% (Balanced),
+Flags require Jev to choose slop or scam with that option's probability at least 75% (Balanced),
 90% (Conservative), or 60% (Sensitive). These are application defaults, not
 validated accuracy claims. Uncertain decisions are not flagged. The displayed
-percentage is slop probability under this rubric, not probability of AI authorship.
+percentage is the selected verdict's probability under this rubric, not probability of AI authorship.
+Scam takes priority over slop for deceptive solicitations, phishing, impersonation,
+wallet-secret requests, advance-fee giveaways, and guaranteed-profit pitches.
+Crypto discussion, automated posting, and warnings about scams are not by themselves
+scam evidence. Scam verdicts display “possible scam”; Jev does not verify accounts or links.
 
 Requests are serialized and duplicate text reuses up to 500 cached decisions in
 worker memory. Worker restarts clear that cache. Requests time out after 15 seconds;
@@ -83,7 +87,7 @@ npm run check
 npm run verify
 ```
 
-For three real API sample calls, put `TYPESAFE_API_KEY=...` in an ignored `.env`
+For six real API sample calls (including scams and benign crypto text), put `TYPESAFE_API_KEY=...` in an ignored `.env`
 file and run `npm run test:live`. This incurs API usage. The packaging script uses
 an allowlist and excludes `.env`. Local tests mock the network.
 

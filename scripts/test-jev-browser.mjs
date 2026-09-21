@@ -13,7 +13,7 @@ const profile = await mkdtemp(join(tmpdir(), "jev-browser-"));
 const samples = [
   "Fixed the CSV importer: quoted commas were splitting columns. Added a regression test with a three-column file; all 42 tests pass.",
   "The future isn't coming. It's here. Unlock your potential. Embrace innovation. Transform your journey. This changes everything. Let that sink in.",
-  "Forgot my umbrella again. Now I'm waiting out the rain at the coffee shop."
+  "Official crypto giveaway! Send 0.1 ETH to our wallet and receive 1 ETH instantly. Guaranteed return. DM your wallet recovery phrase to verify eligibility."
 ];
 const fixture = `<html><body>${samples.map((text, i) => `<article data-testid="tweet"><a href="/TestAccount/status/${100 + i}"><time>now</time></a><div data-testid="tweetText">${text}</div></article>`).join("")}</body></html>`;
 let calls = 0;
@@ -34,11 +34,12 @@ try {
       assert.deepEqual(Object.keys(request.state), ["post"]);
       if (fail) { await route.fulfill({ status: 429, body: "Test quota failure" }); return; }
       const slop = request.state.post === samples[1];
+      const scam = request.state.post === samples[2];
       await route.fulfill({ contentType: "application/json", body: JSON.stringify({
         model: "jev-browser-test",
         answers: {
-          slop: { type: "choice", choice: slop ? "slop" : "not_slop", confidence: 1, probabilities: { slop: +slop, not_slop: +!slop, uncertain: 0 } },
-          category: { type: "choice", choice: slop ? "hype" : "none", confidence: 1, probabilities: { generic: 0, hype: +slop, formulaic: 0, none: +!slop } }
+          slop: { type: "choice", choice: scam ? "scam" : slop ? "slop" : "not_slop", confidence: 1, probabilities: { slop: +slop, scam: +scam, not_slop: +(!slop && !scam), uncertain: 0 } },
+          category: { type: "choice", choice: scam ? "scam" : slop ? "hype" : "none", confidence: 1, probabilities: { generic: 0, hype: +slop, formulaic: 0, scam: +scam, none: +(!slop && !scam) } }
         }
       }) });
     });
@@ -60,8 +61,9 @@ try {
   await feed.reload();
   await feed.waitForFunction(() => document.querySelectorAll("[data-slop-spotter-processed]").length === 3, null, { timeout: 60000 });
   const diagnostics = await worker.evaluate(async () => (await chrome.storage.local.get("slopSpotterDiagnosticsV1")).slopSpotterDiagnosticsV1);
-  assert.equal(await feed.locator("[data-slop-spotter-host]").count(), 1, JSON.stringify(diagnostics));
-  assert.match(await feed.locator("[data-slop-spotter-host]").evaluate((host) => host.shadowRoot.textContent), /Jev: likely slop/);
+  assert.equal(await feed.locator("[data-slop-spotter-host]").count(), 2, JSON.stringify(diagnostics));
+  assert.match(await feed.locator("article").nth(1).locator("[data-slop-spotter-host]").evaluate((host) => host.shadowRoot.textContent), /Jev: likely slop/);
+  assert.match(await feed.locator("article").nth(2).locator("[data-slop-spotter-host]").evaluate((host) => host.shadowRoot.textContent), /Jev: possible scam/);
   assert.equal(await feed.locator("article").nth(1).locator("[data-slop-spotter-host]").count(), 1);
   const localData = await worker.evaluate(() => chrome.storage.local.get(null));
   assert.equal(JSON.stringify(localData).includes(key), false);
@@ -88,7 +90,7 @@ try {
       article.querySelector("[data-testid=tweetText]").textContent = text;
       article.querySelector("a").href = "/TestAccount/status/200";
     }, samples[0]);
-    await feed.waitForFunction(() => document.querySelectorAll("[data-slop-spotter-host]").length === 0 && document.querySelectorAll("[data-slop-spotter-processed]").length === 3);
+    await feed.waitForFunction(() => document.querySelectorAll("[data-slop-spotter-host]").length === 1 && document.querySelectorAll("[data-slop-spotter-processed]").length === 3);
     assert.equal(calls, 3, "Recycled cards must reclassify and reuse cached text decisions");
     await options.locator("#removeKey").click();
     await options.locator("#keyStatus").filter({ hasText: "No API key" }).waitFor();

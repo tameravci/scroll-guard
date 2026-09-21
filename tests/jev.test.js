@@ -3,8 +3,8 @@ const assert = require("node:assert/strict");
 const jev = require("../src/jev.js");
 function response(probability = 0.8) {
   return { model: "jev-test", answers: {
-    slop: { type: "choice", choice: "slop", confidence: 0.7, probabilities: { slop: probability, not_slop: 1 - probability, uncertain: 0 } },
-    category: { type: "choice", choice: "generic", confidence: 1, probabilities: { generic: 1, hype: 0, formulaic: 0, none: 0 } }
+    slop: { type: "choice", choice: "slop", confidence: 0.7, probabilities: { slop: probability, scam: 0, not_slop: 1 - probability, uncertain: 0 } },
+    category: { type: "choice", choice: "generic", confidence: 1, probabilities: { generic: 1, hype: 0, formulaic: 0, scam: 0, none: 0 } }
   } };
 }
 test("Jev probability thresholds differ from model confidence", () => {
@@ -15,10 +15,24 @@ test("Jev probability thresholds differ from model confidence", () => {
 test("uncertainty and invalid responses never become slop", () => {
   const data = response(0.1);
   data.answers.slop.choice = "uncertain";
-  data.answers.slop.probabilities = { slop: 0.1, not_slop: 0.1, uncertain: 0.8 };
+  data.answers.slop.probabilities = { slop: 0.1, scam: 0, not_slop: 0.1, uncertain: 0.8 };
   assert.equal(jev.interpret(data).isSlop, false);
   assert.throws(() => jev.interpret({}));
   data.answers.slop.probabilities.slop = NaN;
+  assert.throws(() => jev.interpret(data));
+});
+test("scam flags use the scam probability and retain a distinct label", () => {
+  const data = response();
+  data.answers.slop.choice = "scam";
+  data.answers.slop.probabilities = { slop: 0.05, scam: 0.8, not_slop: 0.1, uncertain: 0.05 };
+  const result = jev.interpret(data);
+  assert.equal(result.isFlagged, true);
+  assert.equal(result.isScam, true);
+  assert.equal(result.isSlop, false);
+  assert.equal(result.probability, 0.8);
+  assert.deepEqual(result.families, ["jev-scam"]);
+  assert.equal(jev.interpret(data, "conservative").isFlagged, false);
+  delete data.answers.slop.probabilities.scam;
   assert.throws(() => jev.interpret(data));
 });
 test("calls only official endpoint with bearer auth and post state", async () => {
