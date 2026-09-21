@@ -8,6 +8,25 @@
   const ignored = document.querySelector("#ignored");
   const stats = document.querySelector("#stats");
   const status = document.querySelector("#status");
+  const keyInput = document.querySelector("#jevApiKey");
+  const keyStatus = document.querySelector("#keyStatus");
+  async function refreshKeyStatus() {
+    const { jevApiKey } = await chrome.storage.session.get("jevApiKey");
+    keyStatus.textContent = jevApiKey ? "Key saved for this session. Reload X to analyze posts." : "No API key saved. Analysis is unavailable.";
+  }
+  document.querySelector("#saveKey").addEventListener("click", async () => {
+    const key = keyInput.value.trim();
+    if (!key) { keyStatus.textContent = "Enter an API key first."; return; }
+    await chrome.storage.session.set({ jevApiKey: key });
+    keyInput.value = "";
+    await refreshKeyStatus();
+  });
+  document.querySelector("#removeKey").addEventListener("click", async () => {
+    await chrome.storage.session.remove("jevApiKey");
+    keyInput.value = "";
+    await refreshKeyStatus();
+  });
+  await refreshKeyStatus();
 
   async function refreshDashboard() {
     const dashboard = await api.getDashboard();

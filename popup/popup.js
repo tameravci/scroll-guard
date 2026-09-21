@@ -47,7 +47,7 @@
   }
 
   await api.init();
-  tagline.textContent = `v${chrome.runtime.getManifest().version} · Checkable patterns, not AI guesses.`;
+  tagline.textContent = `v${chrome.runtime.getManifest().version} · Writing assessed by TypeSafe Jev.`;
   const settings = await api.getSettings();
   const dashboard = await api.getDashboard();
   const diagnostics = await api.getDiagnostics();

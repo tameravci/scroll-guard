@@ -161,7 +161,7 @@
   function evidenceItem(item) {
     const li = element("li");
     li.append(element("span", "evidence-name", item.name));
-    li.append(element("span", "quote", `“${item.excerpt}”`));
+    li.append(element("span", "quote", item.excerpt));
     li.append(element("span", "fix", item.fix));
     return li;
   }
@@ -224,13 +224,12 @@
     const summary = element("button", "summary");
     summary.type = "button";
     summary.setAttribute("aria-expanded", "false");
-    const patternCount = payload.detection.families.length;
     summary.append(
       element("span", "icon", "⚠"),
       element(
         "span",
         "",
-        `Slop patterns detected · ${patternCount} ${patternCount === 1 ? "pattern" : "patterns"}`
+        `Jev: likely slop · ${Math.round(payload.detection.probability * 100)}%`
       ),
       element("span", "chevron", "⌄")
     );
@@ -242,7 +241,7 @@
     const disclaimer = element(
       "p",
       "disclaimer",
-      "This identifies checkable writing patterns, not whether AI wrote the post."
+      "Jev's writing-quality assessment is not proof that AI wrote this post."
     );
     details.append(list, disclaimer);
 

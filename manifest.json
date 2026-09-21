@@ -1,8 +1,10 @@
 {
   "manifest_version": 3,
   "name": "Slop Spotter for X",
-  "version": "0.2.0",
-  "description": "Highlights checkable AI-slop writing patterns in X feeds and offers user-confirmed block suggestions.",
+  "version": "0.3.0",
+  "description": "Uses TypeSafe Jev to assess slop in X posts and offers user-confirmed block suggestions.",
+  "host_permissions": ["https://api.typesafe.ai/*"],
+  "background": { "service_worker": "src/background.js" },
   "permissions": [
     "storage"
   ],
@@ -16,7 +18,7 @@
         "src/content.css"
       ],
       "js": [
-        "src/detector.js",
+        "src/jev-content.js",
         "src/storage.js",
         "src/x-adapter.js",
         "src/ui.js",

@@ -24,9 +24,10 @@ if (manifest.manifest_version !== 3) {
 if (JSON.stringify(manifest.permissions) !== JSON.stringify(["storage"])) {
   failures.push("The extension must request only the storage permission");
 }
-if (manifest.host_permissions) {
-  failures.push("Unexpected host_permissions entry");
+if (JSON.stringify(manifest.host_permissions) !== JSON.stringify(["https://api.typesafe.ai/*"])) {
+  failures.push("Only the TypeSafe API host permission is allowed");
 }
+requireFile(manifest.background.service_worker);
 
 for (const script of manifest.content_scripts?.flatMap((entry) => entry.js || []) || []) {
   requireFile(script);
@@ -46,6 +47,9 @@ const javascriptFiles = [
   "scripts/package-extension.mjs",
   "scripts/serve-browser-fixture.mjs",
   "src/detector.js",
+  "src/jev.js",
+  "src/jev-content.js",
+  "src/background.js",
   "src/storage.js",
   "src/x-adapter.js",
   "src/ui.js",

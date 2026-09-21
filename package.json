@@ -1,13 +1,14 @@
 {
   "name": "slop-spotter-for-x",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
-  "description": "A local-only Chrome extension that highlights deterministic AI-slop writing patterns on X.",
+  "description": "A Chrome extension that uses TypeSafe Jev to assess slop in X posts.",
   "scripts": {
     "check": "node scripts/check-extension.mjs",
     "icons": "node scripts/generate-icons.mjs",
     "package": "node scripts/package-extension.mjs",
-    "test": "node tests/run-tests.js",
+    "test": "node tests/run-tests.js && node tests/jev.test.js",
+    "test:live": "node --env-file=.env scripts/test-jev-live.mjs",
     "verify": "npm run check && npm test"
   },
   "engines": {

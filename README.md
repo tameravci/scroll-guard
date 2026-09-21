@@ -1,14 +1,12 @@
 # Slop Spotter for X
 
-Slop Spotter is a Manifest V3 Chrome extension that highlights named, checkable
-writing patterns in X posts. After repeated findings from the same account, it
+Slop Spotter is a Manifest V3 Chrome extension that calls TypeSafe's Jev model
+to assess slop in X posts. After repeated findings from the same account, it
 can suggest starting X's native block flow. It never blocks automatically and
 does not claim to determine whether AI wrote a post.
 
-The detector is adapted from Peter Yang's
-[No AI Slop skill](https://github.com/petergyang/no-ai-slop). That project
-rightly cautions that AI detectors guess, so this extension presents the
-specific patterns and excerpts it found instead of an "AI probability."
+Jev evaluates writing quality, not proven AI authorship. The previous rule-based
+detector remains in source for historical tests but is not loaded by the extension.
 
 ## Install locally
 
@@ -17,24 +15,30 @@ specific patterns and excerpts it found instead of an "AI probability."
 3. Click **Load unpacked**.
 4. Select this repository's root directory.
 5. Open or reload `https://x.com/home`.
+6. Open extension settings, paste your TypeSafe API key, and save it for this browser session.
+7. Reload X. Repeat key entry after restarting Chrome or reloading the extension.
 
-The extension requests only Chrome's `storage` permission and access to
-`x.com`/`twitter.com` through its content-script matches.
+The extension requests Chrome's `storage` permission, access to the TypeSafe API,
+and content-script access to `x.com`/`twitter.com`. API requests incur usage on your key.
 
 ## How detection works
 
-The rule engine runs locally and recognizes deterministic forms of:
+The background worker calls `POST https://api.typesafe.ai/v1/systemone` with
+`model: jev-latest` and two Choice questions: a slop/not-slop/uncertain verdict,
+and a writing-problem category. See the [official API quickstart](https://docs.typesafe.ai/introduction/quickstart).
+The rubric asks Jev to judge substance in context, allowing ordinary conversation,
+humor, concrete information, and quotations being criticized. No phrase matching
+determines the verdict. The full rubric lives in `src/jev.js`.
 
-- throat-clearing and faux-insight setups;
-- binary contrasts and negative listings;
-- colon reveals and superficial `-ing` analysis;
-- importance puffery and weasel attribution;
-- fake-strong verbs, dramatic fragments, rhetorical setups, and recap endings;
-- buzzwords and em-dash clusters as supporting evidence only.
+Flags require Jev to choose slop with probability at least 75% (Balanced),
+90% (Conservative), or 60% (Sensitive). These are application defaults, not
+validated accuracy claims. Uncertain decisions are not flagged. The displayed
+percentage is slop probability under this rubric, not probability of AI authorship.
 
-In the default **Balanced** mode, any named structural pattern is highlighted.
-A lone buzzword still does not flag a post; two distinct buzzwords are treated
-as a cluster. Conservative mode remains available when fewer flags are wanted.
+Requests are serialized and duplicate text reuses up to 500 cached decisions in
+worker memory. Worker restarts clear that cache. Requests time out after 15 seconds;
+API failures pause new calls for a minute and never count as clean observations.
+Reload X to retry failed posts. There is no local-rule fallback.
 
 The extension suggests blocking only after it has locally observed at least
 five unique posts from an account, at least three of those posts were flagged,
@@ -58,9 +62,9 @@ profile.
 
 ## Privacy
 
-No network requests, remote model calls, analytics, or telemetry are made.
-Full post text is never persisted. See [PRIVACY.md](PRIVACY.md) for the precise
-local data model and deletion instructions.
+Post text is sent to TypeSafe. The API key is held in trusted extension session
+storage, inaccessible to content scripts, and is never included in a packaged build.
+Full post text is never persisted by the extension. See [PRIVACY.md](PRIVACY.md).
 
 The toolbar popup also reports the latest local scan counts. It distinguishes
 "X exposed no post cards," "post cards could not be parsed," detector evidence
@@ -77,6 +81,10 @@ npm test
 npm run check
 npm run verify
 ```
+
+For three real API sample calls, put `TYPESAFE_API_KEY=...` in an ignored `.env`
+file and run `npm run test:live`. This incurs API usage. The packaging script uses
+an allowlist and excludes `.env`. Local tests mock the network.
 
 The X DOM adapter is deliberately isolated in `src/x-adapter.js`, since X can
 change its private test IDs and markup. Detector and account-threshold logic

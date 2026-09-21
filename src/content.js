@@ -140,9 +140,10 @@
         return;
       }
 
-      const detection = api.detectSlop(parsed.text, {
+      const detection = await api.detectSlop(parsed.text, {
         sensitivity: settings.sensitivity
       });
+      if (expectedGeneration !== generation || !settings?.enabled || !article.isConnected) return;
       const fingerprint = await api.fingerprintPost(
         parsed.handle,
         parsed.statusId,
@@ -177,6 +178,8 @@
       placeEligibleSuggestion(parsed.handle, account);
       article.dataset.slopSpotterProcessed = String(expectedGeneration);
     } catch (error) {
+      // Avoid repeated paid requests on every DOM mutation after a failure.
+      article.dataset.slopSpotterProcessed = String(expectedGeneration);
       lastProcessingError = safeErrorMessage(error);
       diagnosticOutcomes.set(article, {
         parsed: false,
