@@ -74,7 +74,8 @@ longer looks like a detector that simply found nothing.
 ## Development
 
 The checked-in extension runs directly without a build or runtime dependency.
-Node 20 or newer is used only for tests and repository checks.
+Node 20 or newer is used only for tests and repository checks. Playwright is a
+development dependency for browser integration tests.
 
 ```sh
 npm test
@@ -85,6 +86,22 @@ npm run verify
 For three real API sample calls, put `TYPESAFE_API_KEY=...` in an ignored `.env`
 file and run `npm run test:live`. This incurs API usage. The packaging script uses
 an allowlist and excludes `.env`. Local tests mock the network.
+
+To exercise the actual extension in an isolated Chromium profile:
+
+```sh
+npm ci
+npx playwright install chromium
+npm run test:browser
+# Optional: three synthetic posts sent to the real API, using the ignored .env key
+npm run test:browser:live
+```
+
+The browser test checks settings, key isolation, background requests, annotations,
+cache reuse, recycled post cards, and provider-error reporting. Live mode verifies
+the successful API-to-annotation path. Set `CHROME_EXECUTABLE` to use an existing
+Chrome for Testing executable instead of Playwright's Chromium. The temporary
+browser profile is deleted after each run; your normal browser is not used.
 
 The X DOM adapter is deliberately isolated in `src/x-adapter.js`, since X can
 change its private test IDs and markup. Detector and account-threshold logic

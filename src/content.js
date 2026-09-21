@@ -11,6 +11,7 @@
   let scanScheduled = false;
   let generation = 0;
   let analyzedPosts = new WeakMap();
+  let postInputs = new WeakMap();
   let diagnosticOutcomes = new WeakMap();
   let lastProcessingError = "";
 
@@ -113,6 +114,25 @@
   }
 
   async function processPost(article, expectedGeneration) {
+    const parsed = api.parsePost(article);
+    if (!parsed || expectedGeneration !== generation || !settings?.enabled) return;
+    const input = JSON.stringify([parsed.handle, parsed.statusId, parsed.text]);
+    // X can reuse a card for another post while a remote decision is pending.
+    if (postInputs.get(article) !== input) {
+      postInputs.set(article, input);
+      analyzedPosts.delete(article);
+      diagnosticOutcomes.delete(article);
+      delete article.dataset.slopSpotterProcessed;
+      delete article.dataset.slopSpotterPending;
+      delete article.dataset.slopSpotterFlagged;
+      article.querySelector("[data-slop-spotter-host]")?.remove();
+    }
+    const current = () => {
+      const latest = api.parsePost(article);
+      return expectedGeneration === generation && settings?.enabled && article.isConnected &&
+        postInputs.get(article) === input && latest?.handle === parsed.handle &&
+        latest?.statusId === parsed.statusId && latest?.text === parsed.text;
+    };
     const alreadyProcessed =
       article.dataset.slopSpotterProcessed === String(expectedGeneration);
     const flaggedBefore =
@@ -127,28 +147,16 @@
     article.dataset.slopSpotterPending = String(expectedGeneration);
 
     try {
-      const parsed = api.parsePost(article);
-      if (!parsed || expectedGeneration !== generation || !settings?.enabled) {
-        if (!parsed) {
-          diagnosticOutcomes.set(article, {
-            parsed: false,
-            evidence: false,
-            highlighted: false,
-            error: false
-          });
-        }
-        return;
-      }
-
       const detection = await api.detectSlop(parsed.text, {
         sensitivity: settings.sensitivity
       });
-      if (expectedGeneration !== generation || !settings?.enabled || !article.isConnected) return;
+      if (!current()) return;
       const fingerprint = await api.fingerprintPost(
         parsed.handle,
         parsed.statusId,
         parsed.text
       );
+      if (!current()) return;
       const account = await api.recordObservation({
         handle: parsed.handle,
         fingerprint,
@@ -157,7 +165,7 @@
         at: Date.now()
       });
 
-      if (expectedGeneration !== generation || !settings?.enabled) {
+      if (!current()) {
         return;
       }
 
@@ -178,6 +186,7 @@
       placeEligibleSuggestion(parsed.handle, account);
       article.dataset.slopSpotterProcessed = String(expectedGeneration);
     } catch (error) {
+      if (!current()) return;
       // Avoid repeated paid requests on every DOM mutation after a failure.
       article.dataset.slopSpotterProcessed = String(expectedGeneration);
       lastProcessingError = safeErrorMessage(error);
@@ -189,7 +198,9 @@
       });
       throw error;
     } finally {
-      delete article.dataset.slopSpotterPending;
+      if (postInputs.get(article) === input && article.dataset.slopSpotterPending === String(expectedGeneration)) {
+        delete article.dataset.slopSpotterPending;
+      }
       publishDiagnostics();
     }
   }
@@ -199,9 +210,7 @@
     const articles = api.findPosts(root.document);
     publishDiagnostics();
     articles.forEach((article) => {
-      processPost(article, currentGeneration).catch(() => {
-        delete article.dataset.slopSpotterPending;
-      });
+      processPost(article, currentGeneration).catch(() => undefined);
     });
   }
 
@@ -220,6 +229,7 @@
     settings = nextSettings;
     generation += 1;
     analyzedPosts = new WeakMap();
+    postInputs = new WeakMap();
     diagnosticOutcomes = new WeakMap();
     lastProcessingError = "";
     api.removeAllAnnotations();

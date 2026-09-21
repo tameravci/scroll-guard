@@ -9,9 +9,14 @@
     "package": "node scripts/package-extension.mjs",
     "test": "node tests/run-tests.js && node tests/jev.test.js",
     "test:live": "node --env-file=.env scripts/test-jev-live.mjs",
+    "test:browser": "node scripts/test-jev-browser.mjs",
+    "test:browser:live": "JEV_BROWSER_LIVE=1 node --env-file=.env scripts/test-jev-browser.mjs",
     "verify": "npm run check && npm test"
   },
   "engines": {
     "node": ">=20"
+  },
+  "devDependencies": {
+    "playwright": "^1.58.2"
   }
 }

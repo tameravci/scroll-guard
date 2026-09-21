@@ -46,6 +46,8 @@ const javascriptFiles = [
   "scripts/generate-icons.mjs",
   "scripts/package-extension.mjs",
   "scripts/serve-browser-fixture.mjs",
+  "scripts/test-jev-live.mjs",
+  "scripts/test-jev-browser.mjs",
   "src/detector.js",
   "src/jev.js",
   "src/jev-content.js",
@@ -57,6 +59,7 @@ const javascriptFiles = [
   "popup/popup.js",
   "options/options.js",
   "tests/detector.test.js",
+  "tests/jev.test.js",
   "tests/run-tests.js",
   "tests/storage.test.js",
   "tests/x-adapter.test.js"

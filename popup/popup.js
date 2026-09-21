@@ -46,6 +46,13 @@
     status.textContent = "Saved. Open X tabs update automatically.";
   }
 
+  // Jev finishes asynchronously; keep an already-open popup in sync.
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === "local" && changes.slopSpotterDiagnosticsV1?.newValue) {
+      showDiagnostics(changes.slopSpotterDiagnosticsV1.newValue);
+    }
+  });
+
   await api.init();
   tagline.textContent = `v${chrome.runtime.getManifest().version} · Writing assessed by TypeSafe Jev.`;
   const settings = await api.getSettings();
