@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Slop Spotter block-handoff fixture</title>
+  </head>
+  <body data-final-confirm-clicked="false">
+    <main>
+      <h1>Template Bot</h1>
+      <p>@TemplateBot</p>
+      <button data-testid="userActions" type="button">More</button>
+      <div id="menu"></div>
+      <div id="confirmation"></div>
+    </main>
+    <script>
+      document.querySelector("[data-testid='userActions']").addEventListener("click", () => {
+        const menu = document.querySelector("#menu");
+        if (menu.firstChild) return;
+        const block = document.createElement("button");
+        block.type = "button";
+        block.setAttribute("role", "menuitem");
+        block.textContent = "Block @TemplateBot";
+        block.addEventListener("click", () => {
+          const confirm = document.createElement("button");
+          confirm.type = "button";
+          confirm.setAttribute("data-testid", "confirmationSheetConfirm");
+          confirm.textContent = "Confirm block";
+          confirm.addEventListener("click", () => {
+            document.body.dataset.finalConfirmClicked = "true";
+          });
+          document.querySelector("#confirmation").append(confirm);
+        });
+        menu.append(block);
+      });
+    </script>
+  </body>
+</html>

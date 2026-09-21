@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Slop Spotter settings</title>
+    <link rel="stylesheet" href="options.css">
+  </head>
+  <body>
+    <main>
+      <header>
+        <img src="../icons/icon-128.png" width="64" height="64" alt="">
+        <div>
+          <h1>Slop Spotter for X</h1>
+          <p>Highlights named writing patterns. It does not claim to determine who or what wrote a post.</p>
+        </div>
+      </header>
+
+      <section>
+        <h2>Detection</h2>
+        <label class="row">
+          <span>
+            <strong>Highlight slop patterns</strong>
+            <small>Runs only on x.com and twitter.com.</small>
+          </span>
+          <input id="enabled" type="checkbox">
+        </label>
+        <label class="row">
+          <span>
+            <strong>Sensitivity</strong>
+            <small>Balanced highlights any named structural pattern while ignoring lone buzzwords.</small>
+          </span>
+          <select id="sensitivity">
+            <option value="conservative">Conservative — fewer flags</option>
+            <option value="balanced">Balanced</option>
+            <option value="sensitive">Sensitive — more flags</option>
+          </select>
+        </label>
+        <label class="row">
+          <span>
+            <strong>Suggest blocking repeated offenders</strong>
+            <small>Requires 3 flagged posts among 5 observed posts and at least 2 pattern families.</small>
+          </span>
+          <input id="showBlockSuggestions" type="checkbox">
+        </label>
+      </section>
+
+      <section>
+        <h2>Ignored accounts</h2>
+        <p class="muted">These accounts can still be highlighted, but Slop Spotter will not suggest blocking them.</p>
+        <div id="ignored" class="ignored"></div>
+      </section>
+
+      <section>
+        <h2>Local data & privacy</h2>
+        <p>
+          Post analysis happens entirely in your browser. No post text, account history, or settings
+          are transmitted anywhere. The extension stores salted post fingerprints, handles, matched
+          rule IDs, and settings locally so it can count unique posts.
+        </p>
+        <p id="stats" class="muted">Loading local history…</p>
+        <button id="clearHistory" class="danger" type="button">Clear local observation history</button>
+        <a href="../PRIVACY.md" target="_blank">Read the full privacy notice</a>
+      </section>
+
+      <p id="status" class="status" role="status" aria-live="polite"></p>
+    </main>
+
+    <script src="../src/storage.js"></script>
+    <script src="options.js"></script>
+  </body>
+</html>

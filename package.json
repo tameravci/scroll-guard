@@ -1,0 +1,16 @@
+{
+  "name": "slop-spotter-for-x",
+  "version": "0.2.0",
+  "private": true,
+  "description": "A local-only Chrome extension that highlights deterministic AI-slop writing patterns on X.",
+  "scripts": {
+    "check": "node scripts/check-extension.mjs",
+    "icons": "node scripts/generate-icons.mjs",
+    "package": "node scripts/package-extension.mjs",
+    "test": "node tests/run-tests.js",
+    "verify": "npm run check && npm test"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Slop Spotter for X</title>
+    <link rel="stylesheet" href="popup.css">
+  </head>
+  <body>
+    <main>
+      <header>
+        <img src="../icons/icon-48.png" width="36" height="36" alt="">
+        <div>
+          <h1>Slop Spotter</h1>
+          <p id="tagline">Checkable patterns, not AI guesses.</p>
+        </div>
+      </header>
+
+      <section class="settings" aria-label="Quick settings">
+        <label class="toggle-row">
+          <span>
+            <strong>Highlight patterns</strong>
+            <small>Scan posts locally on X.</small>
+          </span>
+          <input id="enabled" type="checkbox">
+        </label>
+
+        <label class="field-row">
+          <span>
+            <strong>Sensitivity</strong>
+            <small>Balanced is the recommended default.</small>
+          </span>
+          <select id="sensitivity">
+            <option value="conservative">Conservative</option>
+            <option value="balanced">Balanced</option>
+            <option value="sensitive">Sensitive</option>
+          </select>
+        </label>
+
+        <label class="toggle-row">
+          <span>
+            <strong>Block suggestions</strong>
+            <small>Never blocks automatically.</small>
+          </span>
+          <input id="showBlockSuggestions" type="checkbox">
+        </label>
+      </section>
+
+      <p id="stats" class="stats">Loading local history…</p>
+      <p id="diagnostics" class="diagnostics">Checking the latest X scan…</p>
+      <p id="status" class="status" role="status" aria-live="polite"></p>
+      <button id="options" class="secondary" type="button">Privacy, data & ignored accounts</button>
+    </main>
+
+    <script src="../src/storage.js"></script>
+    <script src="popup.js"></script>
+  </body>
+</html>
