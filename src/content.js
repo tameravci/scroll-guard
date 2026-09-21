@@ -126,6 +126,8 @@
       delete article.dataset.slopSpotterPending;
       delete article.dataset.slopSpotterFlagged;
       article.querySelector("[data-slop-spotter-host]")?.remove();
+      article.classList.remove("slop-spotter-flagged");
+      delete article.dataset.slopSpotterVerdict;
     }
     const current = () => {
       const latest = api.parsePost(article);

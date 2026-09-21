@@ -29,6 +29,11 @@ and a writing-problem category. See the [official API quickstart](https://docs.t
 The rubric asks Jev to judge substance in context, allowing ordinary conversation,
 humor, concrete information, and quotations being criticized. No phrase matching
 determines the verdict. The full rubric lives in `src/jev.js`.
+Excitement, encouragement, personal celebrations, and casual reactions are explicitly
+allowed even without concrete details. Slop refers to formulaic content presenting
+empty claims as useful advice or insight, or manipulative engagement bait.
+Flagged tweets have a full amber border for slop or coral-red border for possible
+scams, plus a bold verdict bar with expandable assessment details.
 
 Flags require Jev to choose slop or scam with that option's probability at least 75% (Balanced),
 90% (Conservative), or 60% (Sensitive). These are application defaults, not
@@ -87,7 +92,7 @@ npm run check
 npm run verify
 ```
 
-For six real API sample calls (including scams and benign crypto text), put `TYPESAFE_API_KEY=...` in an ignored `.env`
+For ten real API sample calls (including scams, benign crypto text, and excited reactions), put `TYPESAFE_API_KEY=...` in an ignored `.env`
 file and run `npm run test:live`. This incurs API usage. The packaging script uses
 an allowlist and excludes `.env`. Local tests mock the network.
 

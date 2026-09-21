@@ -13,18 +13,22 @@
   const CARD_STYLES = `
     :host {
       color-scheme: light dark;
-      --ss-amber: #ffb000;
-      --ss-amber-soft: rgba(255, 176, 0, 0.12);
+      --ss-amber: #f5a623;
+      --ss-amber-soft: rgba(245, 166, 35, 0.10);
       --ss-border: rgba(127, 127, 127, 0.35);
       --ss-text: inherit;
       display: block;
       font: 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      margin: 4px 12px 10px 68px;
+      margin: 12px 14px 14px;
+    }
+    :host([data-slop-spotter-verdict="scam"]) {
+      --ss-amber: #ff526b;
+      --ss-amber-soft: rgba(255, 82, 107, 0.10);
     }
     * { box-sizing: border-box; }
     .card {
       background: var(--ss-amber-soft);
-      border: 1px solid rgba(255, 176, 0, 0.46);
+      border: 1px solid var(--ss-amber);
       border-radius: 12px;
       color: var(--ss-text);
       overflow: hidden;
@@ -32,29 +36,33 @@
     .summary {
       align-items: center;
       appearance: none;
-      background: transparent;
+      background: var(--ss-amber);
       border: 0;
-      color: inherit;
+      color: #16120b;
       cursor: pointer;
       display: flex;
       font: inherit;
       font-weight: 650;
-      gap: 8px;
-      padding: 10px 12px;
+      gap: 10px;
+      padding: 12px;
       text-align: left;
       width: 100%;
     }
-    .summary:hover { background: rgba(255, 176, 0, 0.08); }
+    .summary:hover { filter: brightness(1.06); }
     .summary:focus-visible, button:focus-visible {
-      outline: 2px solid var(--ss-amber);
-      outline-offset: -2px;
+      outline: 2px solid currentColor;
+      outline-offset: -4px;
     }
-    .icon { color: #d99100; font-size: 16px; }
-    .chevron { margin-left: auto; transition: transform 120ms ease; }
+    .icon { display: grid; place-items: center; flex: 0 0 28px; height: 28px; border: 2px solid currentColor; border-radius: 8px; font-size: 20px; font-weight: 850; }
+    .summary-copy { min-width: 0; flex: 1; }
+    .eyebrow { display: block; font-size: 10px; font-weight: 750; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.75; }
+    .verdict { display: block; font-size: 16px; font-weight: 800; line-height: 1.25; }
+    .probability { border: 1px solid rgba(0,0,0,0.22); border-radius: 999px; padding: 4px 8px; font-size: 13px; font-weight: 750; white-space: nowrap; }
+    .chevron { font-size: 20px; transition: transform 120ms ease; }
     .summary[aria-expanded="true"] .chevron { transform: rotate(180deg); }
     .details {
-      border-top: 1px solid rgba(255, 176, 0, 0.28);
-      padding: 8px 12px 12px;
+      border-top: 1px solid var(--ss-amber);
+      padding: 12px;
     }
     .details[hidden] { display: none; }
     .evidence {
@@ -80,8 +88,8 @@
       padding-top: 8px;
     }
     .suggestion {
-      background: rgba(255, 176, 0, 0.12);
-      border-top: 1px solid rgba(255, 176, 0, 0.32);
+      background: var(--ss-amber-soft);
+      border-top: 1px solid var(--ss-amber);
       padding: 11px 12px 12px;
     }
     .suggestion-title { font-weight: 700; margin: 0 0 3px; }
@@ -107,6 +115,7 @@
     }
     .actions .block:hover { background: #a91c24; }
     .status { font-size: 12px; margin: 8px 0 0; opacity: 0.75; }
+    @media (prefers-reduced-motion: reduce) { .chevron { transition: none; } }
   `;
 
   const BANNER_STYLES = `
@@ -211,6 +220,8 @@
 
     const host = element("div");
     host.setAttribute(HOST_ATTRIBUTE, "");
+    const verdict = payload.detection.isScam ? "scam" : "slop";
+    host.dataset.slopSpotterVerdict = verdict;
     host.dataset.slopSpotterHandle = payload.parsed.handle.toLowerCase();
     host.dataset.slopSpotterSuggestion = String(payload.account?.shouldSuggest === true);
     host.addEventListener("click", (event) => event.stopPropagation());
@@ -224,24 +235,26 @@
     const summary = element("button", "summary");
     summary.type = "button";
     summary.setAttribute("aria-expanded", "false");
+    summary.setAttribute("aria-controls", "finding-details");
+    const copy = element("span", "summary-copy");
+    copy.append(element("span", "eyebrow", "Jev assessment"),
+      element("span", "verdict", verdict === "scam" ? "Possible scam" : "Likely slop"));
     summary.append(
-      element("span", "icon", "⚠"),
-      element(
-        "span",
-        "",
-        `Jev: ${payload.detection.isScam ? "possible scam" : "likely slop"} · ${Math.round(payload.detection.probability * 100)}%`
-      ),
+      element("span", "icon", "!"),
+      copy,
+      element("span", "probability", `${Math.round(payload.detection.probability * 100)}%`),
       element("span", "chevron", "⌄")
     );
 
     const details = element("div", "details");
+    details.id = "finding-details";
     details.hidden = true;
     const list = element("ul", "evidence");
     payload.detection.evidence.forEach((item) => list.append(evidenceItem(item)));
     const disclaimer = element(
       "p",
       "disclaimer",
-      "Jev's writing-quality assessment is not proof that AI wrote this post."
+      verdict === "scam" ? "This is a model assessment, not verification of the account or linked website." : "Jev's writing-quality assessment is not proof that AI wrote this post."
     );
     details.append(list, disclaimer);
 
@@ -257,6 +270,7 @@
     }
     shadow.append(style, card);
     article.classList.add("slop-spotter-flagged");
+    article.dataset.slopSpotterVerdict = verdict;
     article.append(host);
     return host;
   }
@@ -267,7 +281,10 @@
       .forEach((host) => host.remove());
     root.document
       ?.querySelectorAll?.("article.slop-spotter-flagged")
-      .forEach((article) => article.classList.remove("slop-spotter-flagged"));
+      .forEach((article) => {
+        article.classList.remove("slop-spotter-flagged");
+        delete article.dataset.slopSpotterVerdict;
+      });
   }
 
   function showHandoffStatus(status) {
