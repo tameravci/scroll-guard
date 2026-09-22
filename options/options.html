@@ -34,7 +34,7 @@
         <label class="row">
           <span>
             <strong>Sensitivity</strong>
-            <small>Minimum Jev probability for slop or scam: conservative 90%, balanced 75%, sensitive 60%.</small>
+            <small>Conservative 90%, balanced 75%, sensitive 60%. Slop or scam above 80% always appears with a Block button.</small>
           </span>
           <select id="sensitivity">
             <option value="conservative">Conservative — fewer flags</option>
@@ -53,7 +53,7 @@
 
       <section>
         <h2>Ignored accounts</h2>
-        <p class="muted">These accounts can still be highlighted, but Slop Spotter will not suggest blocking them.</p>
+        <p class="muted">Account-level suggestions are suppressed. Direct Block buttons still appear for slop or scam above 80%.</p>
         <div id="ignored" class="ignored"></div>
       </section>
 

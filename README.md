@@ -49,10 +49,15 @@ worker memory. Worker restarts clear that cache. Requests time out after 15 seco
 API failures pause new calls for a minute and never count as clean observations.
 Reload X to retry failed posts. There is no local-rule fallback.
 
-The extension suggests blocking only after it has locally observed at least
-five unique posts from an account, at least three of those posts were flagged,
-and the findings span at least two pattern families. Users can dismiss a
-suggestion for seven days or permanently suppress suggestions for an account.
+Every slop or scam verdict with probability strictly above 80% displays a visible
+`Block @handle` button, even in Conservative mode. No observation history is
+required; snoozes, ignored accounts, the block-suggestion toggle, and other cards
+from the same account do not hide this direct action. Exactly 80% does not qualify.
+The button opens X's native confirmation; it does not confirm the block for you.
+
+Below this direct-action threshold, optional account-level suggestions still
+require five observed posts, three flagged posts, and two finding categories.
+Those suggestions can be snoozed or suppressed for an account.
 
 ## Block handoff
 

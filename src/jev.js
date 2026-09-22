@@ -50,13 +50,15 @@
     if (!validAnswer(answer, ["slop", "scam", "not_slop", "uncertain"]) ||
         !validAnswer(category, Object.keys(categories))) throw new Error("Jev returned an invalid decision.");
     const threshold = { conservative: 0.9, balanced: 0.75, sensitive: 0.6 }[sensitivity] ?? 0.75;
-    const isSlop = answer.choice === "slop" && answer.probabilities.slop >= threshold;
-    const isScam = answer.choice === "scam" && answer.probabilities.scam >= threshold;
-    const isFlagged = isSlop || isScam;
     const probability = answer.probabilities[answer.choice];
+    const canBlock = ["slop", "scam"].includes(answer.choice) && probability > 0.8;
+    // A direct block action above 80% must remain visible in every sensitivity mode.
+    const isSlop = answer.choice === "slop" && (probability >= threshold || canBlock);
+    const isScam = answer.choice === "scam" && (probability >= threshold || canBlock);
+    const isFlagged = isSlop || isScam;
     const family = isScam ? "jev-scam" : category.choice === "none" ? "jev-slop" : `jev-${category.choice}`;
     return {
-      isSlop, isScam, isFlagged, confidence: answer.confidence, probability,
+      isSlop, isScam, isFlagged, canBlock, confidence: answer.confidence, probability,
       decision: answer.choice, model: response.model, families: isFlagged ? [family] : [],
       evidence: isFlagged ? [{
         name: "Jev assessment", family,

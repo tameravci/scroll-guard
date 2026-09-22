@@ -95,6 +95,9 @@
     .suggestion-title { font-weight: 700; margin: 0 0 3px; }
     .suggestion-copy { font-size: 13px; margin: 0 0 10px; opacity: 0.8; }
     .actions { display: flex; flex-wrap: wrap; gap: 7px; }
+    .direct-actions { padding: 10px 12px; align-items: center; }
+    .direct-actions .status { flex-basis: 100%; margin: 0; }
+    .direct-actions .status:empty { display: none; }
     .actions button {
       appearance: none;
       background: transparent;
@@ -265,7 +268,19 @@
     });
 
     card.append(summary, details);
-    if (payload.account?.shouldSuggest) {
+    if (payload.detection.canBlock) {
+      const actions = element("div", "actions direct-actions");
+      const block = element("button", "block", `Block @${payload.parsed.handle}`);
+      block.type = "button";
+      const status = element("p", "status");
+      status.setAttribute("role", "status");
+      block.addEventListener("click", () => {
+        status.textContent = "Opening X's block confirmation…";
+        callbacks.onBlock?.();
+      });
+      actions.append(block, status);
+      card.append(actions);
+    } else if (payload.account?.shouldSuggest) {
       card.append(buildSuggestion(payload.parsed, payload.account, callbacks, host));
     }
     shadow.append(style, card);

@@ -12,6 +12,24 @@ test("Jev probability thresholds differ from model confidence", () => {
   assert.equal(jev.interpret(response(), "conservative").isSlop, false);
   assert.equal(jev.interpret(response(0.65), "sensitive").isSlop, true);
 });
+test("direct block requires strictly above 80% slop or scam, regardless of sensitivity", () => {
+  assert.equal(jev.interpret(response(0.8)).canBlock, false);
+  assert.equal(jev.interpret(response(0.79)).canBlock, false);
+  for (const verdict of ["slop", "scam"]) {
+    const data = response(0.81);
+    data.answers.slop.choice = verdict;
+    data.answers.slop.probabilities = { slop: 0, scam: 0, not_slop: 0.19, uncertain: 0, [verdict]: 0.81 };
+    const result = jev.interpret(data, "conservative");
+    assert.equal(result.canBlock, true);
+    assert.equal(result.isFlagged, true);
+  }
+  const clean = response(0);
+  clean.answers.slop.choice = "not_slop";
+  assert.equal(jev.interpret(clean).canBlock, false);
+  clean.answers.slop.choice = "uncertain";
+  clean.answers.slop.probabilities = { slop: 0, scam: 0, not_slop: 0, uncertain: 1 };
+  assert.equal(jev.interpret(clean).canBlock, false);
+});
 test("uncertainty and invalid responses never become slop", () => {
   const data = response(0.1);
   data.answers.slop.choice = "uncertain";

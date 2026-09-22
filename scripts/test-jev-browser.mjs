@@ -48,7 +48,7 @@ try {
       await route.fulfill({ contentType: "application/json", body: JSON.stringify({
         model: "jev-browser-test",
         answers: {
-          slop: { type: "choice", choice: scam ? "scam" : slop ? "slop" : "not_slop", confidence: 1, probabilities: { slop: +slop, scam: +scam, not_slop: +(!slop && !scam), uncertain: 0 } },
+          slop: { type: "choice", choice: scam ? "scam" : slop ? "slop" : "not_slop", confidence: 1, probabilities: { slop: +slop, scam: scam ? 0.81 : 0, not_slop: scam ? 0.19 : +!slop, uncertain: 0 } },
           category: { type: "choice", choice: scam ? "scam" : slop ? "hype" : "none", confidence: 1, probabilities: { generic: 0, hype: +slop, formulaic: 0, scam: +scam, none: +(!slop && !scam) } }
         }
       }) });
@@ -68,6 +68,14 @@ try {
   await options.locator("#saveKey").click();
   await options.locator("#keyStatus").filter({ hasText: "Key saved" }).waitFor();
   assert.equal(await options.locator("#jevApiKey").inputValue(), "");
+  if (!live) {
+    await options.locator("#sensitivity").selectOption("conservative");
+    await options.locator("#showBlockSuggestions").uncheck();
+    await options.waitForFunction(async () => {
+      const { slopSpotterStateV1: state } = await chrome.storage.local.get("slopSpotterStateV1");
+      return state?.settings.sensitivity === "conservative" && state.settings.showBlockSuggestions === false;
+    });
+  }
   await feed.reload();
   await feed.waitForFunction(() => document.querySelectorAll("[data-slop-spotter-processed]").length === 3, null, { timeout: 60000 });
   const diagnostics = await worker.evaluate(async () => (await chrome.storage.local.get("slopSpotterDiagnosticsV1")).slopSpotterDiagnosticsV1);
@@ -95,6 +103,18 @@ try {
     }
   }
   assert.equal(await feed.locator("article").nth(1).locator("[data-slop-spotter-host]").count(), 1);
+  for (const index of [1, 2]) {
+    const card = feed.locator("article").nth(index);
+    await card.getByRole("button", { name: "Block @TestAccount", exact: true }).waitFor({ state: "visible" });
+    assert.equal(await card.locator(".summary").getAttribute("aria-expanded"), "false");
+  }
+  if (!live) {
+    const opened = context.waitForEvent("page");
+    await feed.locator("article").nth(2).getByRole("button", { name: "Block @TestAccount", exact: true }).click();
+    const handoff = await opened;
+    await handoff.waitForURL("https://x.com/TestAccount#slop-spotter-block");
+    await handoff.close();
+  }
   const localData = await worker.evaluate(() => chrome.storage.local.get(null));
   assert.equal(JSON.stringify(localData).includes(key), false);
   assert.equal(JSON.stringify(localData).includes(samples[1]), false);
