@@ -33,7 +33,9 @@ Excitement, encouragement, personal celebrations, and casual reactions are expli
 allowed even without concrete details. Slop refers to formulaic content presenting
 empty claims as useful advice or insight, or manipulative engagement bait.
 Flagged tweets have a full amber border for slop or coral-red border for possible
-scams, plus a bold verdict bar with expandable assessment details.
+scams. Graphite assessment cards use a prominent verdict, a probability ring,
+expandable details, and a separate high-contrast Block action. The layout adapts
+to narrow cards and respects reduced-motion preferences.
 
 Flags require Jev to choose slop or scam with that option's probability at least 75% (Balanced),
 90% (Conservative), or 60% (Sensitive). These are application defaults, not
