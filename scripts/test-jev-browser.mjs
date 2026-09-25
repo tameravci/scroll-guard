@@ -79,6 +79,16 @@ try {
   await feed.reload();
   await feed.waitForFunction(() => document.querySelectorAll("[data-slop-spotter-processed]").length === 3, null, { timeout: 60000 });
   const diagnostics = await worker.evaluate(async () => (await chrome.storage.local.get("slopSpotterDiagnosticsV1")).slopSpotterDiagnosticsV1);
+  // Model a feed card with intrinsic-size flex children, rather than only block layout.
+  await feed.addStyleTag({ content: `
+    article[data-testid="tweet"] { display:flex; flex-direction:column; align-items:flex-start; }
+    article[data-testid="tweet"] > div { align-self:flex-start; }
+  ` });
+  for (const host of await feed.locator("[data-slop-spotter-host]").all()) {
+    const bounds = await host.boundingBox();
+    assert.ok(bounds && bounds.width > 200 && bounds.height > 100,
+      `Assessment card collapsed in flex layout: ${JSON.stringify(bounds)}`);
+  }
   assert.equal(await feed.locator("[data-slop-spotter-host]").count(), 2, JSON.stringify(diagnostics));
   assert.match(await feed.locator("article").nth(1).locator("[data-slop-spotter-host]").evaluate((host) => host.shadowRoot.textContent), /Likely slop/);
   assert.match(await feed.locator("article").nth(2).locator("[data-slop-spotter-host]").evaluate((host) => host.shadowRoot.textContent), /Possible scam/);

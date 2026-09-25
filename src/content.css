@@ -12,8 +12,13 @@ article[data-testid="tweet"].slop-spotter-flagged[data-slop-spotter-verdict="sca
 }
 
 [data-slop-spotter-host] {
-  display: block;
+  /* Keep a real width inside X's flex cards; shadow size containment can collapse. */
+  display: block !important;
+  box-sizing: border-box !important;
+  width: calc(100% - 28px) !important;
+  min-width: 0 !important;
+  flex: none !important;
   position: relative;
   z-index: 1;
-  align-self: stretch;
+  align-self: stretch !important;
 }

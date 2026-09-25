@@ -20,7 +20,10 @@
       display: block;
       font: 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       margin: 12px 14px 14px;
-      container-type: inline-size;
+      box-sizing: border-box;
+      width: calc(100% - 28px);
+      min-width: 0;
+      flex: none;
     }
     :host([data-slop-spotter-verdict="scam"]) {
       --ss-amber: #ff526b;
@@ -134,7 +137,7 @@
     :host([data-slop-spotter-verdict="scam"]) .actions .block { background: #ffdce1; }
     :host([data-slop-spotter-verdict="scam"]) .actions .block:hover { background: var(--ss-amber); }
     .status { font-size: 12px; margin: 8px 0 0; opacity: 0.75; }
-    @container (max-width: 340px) {
+    @media (max-width: 400px) {
       .masthead { padding: 12px 12px 0; }
       .summary { padding: 14px 12px; gap: 10px; }
       .verdict { font-size: 23px; }
