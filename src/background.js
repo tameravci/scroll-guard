@@ -1,6 +1,6 @@
 "use strict";
-importScripts("jev.js");
-// Session storage is restricted to trusted extension contexts by Chrome by default.
+importScripts("jev.js", "key-store.js");
+// The key lives in the extension origin's IndexedDB, which content scripts cannot open.
 // The credential never enters content scripts or the public observation store.
 const cache = new Map();
 let queue = Promise.resolve();
@@ -18,7 +18,7 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
   const task = queue.then(async () => {
     const stored = await chrome.storage.local.get("slopSpotterStateV1");
     if (stored.slopSpotterStateV1?.settings?.enabled === false) throw new Error("Detection is disabled.");
-    const { jevApiKey } = await chrome.storage.session.get("jevApiKey");
+    const jevApiKey = await JevKeyStore.get();
     if (!jevApiKey) throw new Error("Add your TypeSafe API key in extension settings, then reload X.");
     if (Date.now() < cooldownUntil) throw new Error("Jev is temporarily unavailable. Try reloading X in a minute.");
     const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(message.text));
@@ -30,12 +30,12 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
       cache.set(id, result);
       if (cache.size > 500) cache.delete(cache.keys().next().value);
     }
-    return JevDetector.interpret(result, message.sensitivity);
+    return JevDetector.interpret(result, message.sensitivity, { flagClickbait: message.flagClickbait !== false });
   });
   queue = task.catch(() => undefined);
   task.then((detection) => respond({ detection }), () => respond({ error: "Jev could not analyze this post. Check the API key in settings, then reload X in a minute." })).finally(() => { pending -= 1; });
   return true;
 });
 chrome.storage.onChanged.addListener((changes, area) => {
-  if (area === "session" && changes.jevApiKey) { cache.clear(); cooldownUntil = 0; }
+  if (area === "session" && changes.jevApiKeyChangedAt) { cache.clear(); cooldownUntil = 0; }
 });

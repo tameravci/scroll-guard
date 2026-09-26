@@ -4,7 +4,7 @@
   const api = globalThis.SlopSpotter;
   const enabled = document.querySelector("#enabled");
   const sensitivity = document.querySelector("#sensitivity");
-  const suggestions = document.querySelector("#showBlockSuggestions");
+  const clickbait = document.querySelector("#flagClickbait");
   const status = document.querySelector("#status");
   const stats = document.querySelector("#stats");
   const diagnosticsNode = document.querySelector("#diagnostics");
@@ -60,7 +60,7 @@
   const diagnostics = await api.getDiagnostics();
   enabled.checked = settings.enabled;
   sensitivity.value = settings.sensitivity;
-  suggestions.checked = settings.showBlockSuggestions;
+  clickbait.checked = settings.flagClickbait !== false;
   stats.textContent = `${dashboard.flaggedPosts} flagged of ${dashboard.observedPosts} locally observed posts.`;
   showDiagnostics(diagnostics);
 
@@ -68,9 +68,7 @@
   sensitivity.addEventListener("change", () =>
     save({ sensitivity: sensitivity.value })
   );
-  suggestions.addEventListener("change", () =>
-    save({ showBlockSuggestions: suggestions.checked })
-  );
+  clickbait.addEventListener("change", () => save({ flagClickbait: clickbait.checked }));
   document.querySelector("#options").addEventListener("click", () => {
     chrome.runtime.openOptionsPage();
   });

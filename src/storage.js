@@ -11,14 +11,13 @@
   const DIAGNOSTICS_KEY = "slopSpotterDiagnosticsV1";
   const MAX_ACCOUNTS = 300;
   const MAX_POSTS_PER_ACCOUNT = 30;
-  const ONE_DAY = 24 * 60 * 60 * 1000;
+  // Settings from the removed repeated-account block suggestions.
+  const RETIRED_SETTINGS = ["showBlockSuggestions", "minimumObservedPosts", "minimumFlaggedPosts"];
 
   const DEFAULT_SETTINGS = Object.freeze({
     enabled: true,
     sensitivity: "balanced",
-    showBlockSuggestions: true,
-    minimumObservedPosts: 5,
-    minimumFlaggedPosts: 3
+    flagClickbait: true
   });
 
   let cachedState;
@@ -62,6 +61,7 @@
       ...DEFAULT_SETTINGS,
       ...(candidate.settings && typeof candidate.settings === "object" ? candidate.settings : {})
     };
+    RETIRED_SETTINGS.forEach((key) => delete settings[key]);
     if (Number(candidate.schemaVersion || 0) < 2 && settings.sensitivity === "conservative") {
       settings.sensitivity = "balanced";
     }
@@ -141,31 +141,6 @@
       .toLowerCase();
   }
 
-  function evaluateAccount(account, settings, now) {
-    const safeAccount = account || { posts: [] };
-    const safeSettings = { ...DEFAULT_SETTINGS, ...(settings || {}) };
-    const posts = Array.isArray(safeAccount.posts) ? safeAccount.posts : [];
-    const flagged = posts.filter((post) => post.flagged === true);
-    const families = new Set(flagged.flatMap((post) => post.families || []));
-    const snoozed = Number(safeAccount.snoozedUntil || 0) > (now || Date.now());
-
-    return {
-      observedCount: posts.length,
-      flaggedCount: flagged.length,
-      familyCount: families.size,
-      families: [...families],
-      neverSuggest: safeAccount.neverSuggest === true,
-      snoozed,
-      shouldSuggest:
-        safeSettings.showBlockSuggestions === true &&
-        safeAccount.neverSuggest !== true &&
-        !snoozed &&
-        posts.length >= safeSettings.minimumObservedPosts &&
-        flagged.length >= safeSettings.minimumFlaggedPosts &&
-        families.size >= 2
-    };
-  }
-
   function pruneAccounts(accounts) {
     const entries = Object.entries(accounts);
     if (entries.length <= MAX_ACCOUNTS) {
@@ -212,11 +187,11 @@
     if (typeof patch.enabled === "boolean") {
       allowed.enabled = patch.enabled;
     }
+    if (typeof patch.flagClickbait === "boolean") {
+      allowed.flagClickbait = patch.flagClickbait;
+    }
     if (["conservative", "balanced", "sensitive"].includes(patch.sensitivity)) {
       allowed.sensitivity = patch.sensitivity;
-    }
-    if (typeof patch.showBlockSuggestions === "boolean") {
-      allowed.showBlockSuggestions = patch.showBlockSuggestions;
     }
 
     return enqueueWrite((state) => {
@@ -229,15 +204,13 @@
     return enqueueWrite((state) => {
       const handle = normalizeHandle(observation.handle);
       if (!handle || !observation.fingerprint) {
-        return evaluateAccount(undefined, state.settings);
+        return { handle, wasNew: false };
       }
 
       const now = Number(observation.at || Date.now());
       const account = state.accounts[handle] || {
         handle,
         posts: [],
-        neverSuggest: false,
-        snoozedUntil: 0,
         lastSeen: now
       };
       const alreadyRecorded = account.posts.some(
@@ -260,51 +233,8 @@
       state.accounts[handle] = account;
       pruneAccounts(state.accounts);
 
-      return {
-        handle,
-        ...evaluateAccount(account, state.settings, now),
-        wasNew: !alreadyRecorded
-      };
+      return { handle, wasNew: !alreadyRecorded };
     }, { deferPersist: true });
-  }
-
-  function snoozeAccount(handle, durationMs) {
-    return enqueueWrite((state) => {
-      const key = normalizeHandle(handle);
-      const account = state.accounts[key];
-      if (!account) {
-        return false;
-      }
-      account.snoozedUntil = Date.now() + Math.max(ONE_DAY, Number(durationMs || 0));
-      return true;
-    });
-  }
-
-  function ignoreAccount(handle) {
-    return enqueueWrite((state) => {
-      const key = normalizeHandle(handle);
-      const account = state.accounts[key] || {
-        handle: key,
-        posts: [],
-        lastSeen: Date.now(),
-        snoozedUntil: 0
-      };
-      account.neverSuggest = true;
-      state.accounts[key] = account;
-      return true;
-    });
-  }
-
-  function restoreAccount(handle) {
-    return enqueueWrite((state) => {
-      const key = normalizeHandle(handle);
-      if (!state.accounts[key]) {
-        return false;
-      }
-      state.accounts[key].neverSuggest = false;
-      state.accounts[key].snoozedUntil = 0;
-      return true;
-    });
   }
 
   function clearHistory() {
@@ -325,11 +255,7 @@
         (total, account) =>
           total + (account.posts || []).filter((post) => post.flagged === true).length,
         0
-      ),
-      ignoredHandles: accounts
-        .filter((account) => account.neverSuggest === true)
-        .map((account) => account.handle)
-        .sort()
+      )
     };
   }
 
@@ -397,19 +323,15 @@
     DIAGNOSTICS_KEY,
     STORAGE_KEY,
     clearHistory,
-    evaluateAccount,
     fingerprintPost,
     getDashboard,
     getDiagnostics,
     getSettings,
-    ignoreAccount,
     init,
     normalizeHandle,
     onStateChanged,
     recordObservation,
     reportDiagnostics,
-    restoreAccount,
-    snoozeAccount,
     updateSettings
   };
 });

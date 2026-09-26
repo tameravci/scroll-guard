@@ -10,7 +10,6 @@
   let observer;
   let scanScheduled = false;
   let generation = 0;
-  let analyzedPosts = new WeakMap();
   let postInputs = new WeakMap();
   let diagnosticOutcomes = new WeakMap();
   let lastProcessingError = "";
@@ -36,21 +35,11 @@
     }).catch(() => undefined);
   }
 
-  function hasVisibleSuggestion(handle, exceptArticle) {
-    return [...root.document.querySelectorAll("[data-slop-spotter-host]")].some(
-      (host) =>
-        host.dataset.slopSpotterSuggestion === "true" &&
-        host.dataset.slopSpotterHandle === handle.toLowerCase() &&
-        !exceptArticle?.contains(host)
-    );
-  }
-
   function callbacksFor(parsed) {
     return {
       onBlock() {
         try {
           api.openBlockHandoff(parsed.handle);
-          api.snoozeAccount(parsed.handle, 24 * 60 * 60 * 1000).catch(() => undefined);
         } catch {
           api.showHandoffStatus({
             state: "error",
@@ -58,43 +47,12 @@
             message: "Could not open a safe X profile URL for this account."
           });
         }
-      },
-      onSnooze() {
-        return api.snoozeAccount(parsed.handle, 7 * 24 * 60 * 60 * 1000);
-      },
-      onIgnore() {
-        return api.ignoreAccount(parsed.handle);
       }
     };
   }
 
-  function mountFinding(article, payload, account) {
-    const shouldSuggest =
-      account.shouldSuggest && !hasVisibleSuggestion(payload.parsed.handle, article);
-    api.mountPostAnnotation(
-      article,
-      {
-        ...payload,
-        account: { ...account, shouldSuggest }
-      },
-      callbacksFor(payload.parsed)
-    );
-  }
-
-  function placeEligibleSuggestion(handle, account) {
-    if (!account.shouldSuggest || hasVisibleSuggestion(handle)) {
-      return;
-    }
-    for (const article of api.findPosts(root.document)) {
-      const payload = analyzedPosts.get(article);
-      if (
-        payload?.detection.isFlagged &&
-        payload.parsed.handle.toLowerCase() === handle.toLowerCase()
-      ) {
-        mountFinding(article, payload, account);
-        return;
-      }
-    }
+  function mountFinding(article, payload) {
+    api.mountPostAnnotation(article, payload, callbacksFor(payload.parsed));
   }
 
   function scheduleScan() {
@@ -120,13 +78,11 @@
     // X can reuse a card for another post while a remote decision is pending.
     if (postInputs.get(article) !== input) {
       postInputs.set(article, input);
-      analyzedPosts.delete(article);
       diagnosticOutcomes.delete(article);
       delete article.dataset.slopSpotterProcessed;
       delete article.dataset.slopSpotterPending;
       delete article.dataset.slopSpotterFlagged;
       article.querySelector("[data-slop-spotter-host]")?.remove();
-      article.classList.remove("slop-spotter-flagged");
       delete article.dataset.slopSpotterVerdict;
     }
     const current = () => {
@@ -150,7 +106,8 @@
 
     try {
       const detection = await api.detectSlop(parsed.text, {
-        sensitivity: settings.sensitivity
+        sensitivity: settings.sensitivity,
+        flagClickbait: settings.flagClickbait
       });
       if (!current()) return;
       const fingerprint = await api.fingerprintPost(
@@ -159,7 +116,7 @@
         parsed.text
       );
       if (!current()) return;
-      const account = await api.recordObservation({
+      await api.recordObservation({
         handle: parsed.handle,
         fingerprint,
         flagged: detection.isFlagged,
@@ -172,10 +129,8 @@
       }
 
       if (detection.isFlagged) {
-        const payload = { detection, parsed };
-        analyzedPosts.set(article, payload);
         article.dataset.slopSpotterFlagged = String(expectedGeneration);
-        mountFinding(article, payload, account);
+        mountFinding(article, { detection, parsed });
       } else {
         delete article.dataset.slopSpotterFlagged;
       }
@@ -185,7 +140,6 @@
         highlighted: detection.isFlagged,
         error: false
       });
-      placeEligibleSuggestion(parsed.handle, account);
       article.dataset.slopSpotterProcessed = String(expectedGeneration);
     } catch (error) {
       if (!current()) return;
@@ -230,7 +184,6 @@
   function resetForSettings(nextSettings) {
     settings = nextSettings;
     generation += 1;
-    analyzedPosts = new WeakMap();
     postInputs = new WeakMap();
     diagnosticOutcomes = new WeakMap();
     lastProcessingError = "";
@@ -267,7 +220,7 @@
       if (
         next.enabled !== settings.enabled ||
         next.sensitivity !== settings.sensitivity ||
-        next.showBlockSuggestions !== settings.showBlockSuggestions
+        next.flagClickbait !== settings.flagClickbait
       ) {
         resetForSettings(next);
       } else {

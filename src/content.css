@@ -1,23 +1,47 @@
-article[data-testid="tweet"].slop-spotter-flagged {
+/* X rewrites the article's class attribute on hover, so key the frame to a data
+   attribute that X does not manage. */
+article[data-testid="tweet"][data-slop-spotter-verdict] {
   --ss-highlight: #f5a623;
   --ss-wash: rgba(245, 166, 35, 0.035);
-  box-shadow: inset 0 0 0 3px var(--ss-highlight) !important;
   background-image: linear-gradient(var(--ss-wash), var(--ss-wash)) !important;
   border-radius: 20px !important;
+  position: relative !important;
 }
 
-article[data-testid="tweet"].slop-spotter-flagged[data-slop-spotter-verdict="scam"] {
+/* X paints hover backgrounds on the post's children, which covered an inset
+   shadow on the article. Draw the frame on an overlay above the content. */
+article[data-testid="tweet"][data-slop-spotter-verdict]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 3px var(--ss-highlight);
+  pointer-events: none;
+}
+
+article[data-testid="tweet"][data-slop-spotter-verdict="scam"] {
   --ss-highlight: #ff526b;
   --ss-wash: rgba(255, 82, 107, 0.04);
 }
 
+article[data-testid="tweet"][data-slop-spotter-verdict="bot"] {
+  --ss-highlight: #a78bfa;
+  --ss-wash: rgba(167, 139, 250, 0.04);
+}
+
+article[data-testid="tweet"][data-slop-spotter-verdict="clickbait"] {
+  --ss-highlight: #2dd4bf;
+  --ss-wash: rgba(45, 212, 191, 0.04);
+}
+
 [data-slop-spotter-host] {
-  /* Keep a real width inside X's flex cards; shadow size containment can collapse. */
+  /* Fill a column card, and shrink instead of squeezing a row sibling. */
   display: block !important;
   box-sizing: border-box !important;
-  width: calc(100% - 28px) !important;
+  width: auto !important;
   min-width: 0 !important;
-  flex: none !important;
+  flex: 1 1 100% !important;
   position: relative;
   z-index: 1;
   align-self: stretch !important;

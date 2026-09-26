@@ -106,20 +106,6 @@ a {
   color: #ffbf33;
 }
 
-.ignored {
-  display: grid;
-  gap: 8px;
-}
-
-.ignored-account {
-  align-items: center;
-  border: 1px solid #353535;
-  border-radius: 10px;
-  display: flex;
-  justify-content: space-between;
-  padding: 9px 11px;
-}
-
 .status {
   color: #ffbf33;
   min-height: 24px;

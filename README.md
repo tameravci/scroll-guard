@@ -1,9 +1,9 @@
 # Slop Spotter for X
 
 Slop Spotter is a Manifest V3 Chrome extension that calls TypeSafe's Jev model
-to assess slop in X posts. After repeated findings from the same account, it
-can suggest starting X's native block flow. It never blocks automatically and
-does not claim to determine whether AI wrote a post.
+to assess slop in X posts. Each flagged post gets a button that starts X's native
+block flow. It never blocks automatically and does not claim to determine whether
+AI wrote a post.
 
 Jev evaluates writing quality, not proven AI authorship. The previous rule-based
 detector remains in source for historical tests but is not loaded by the extension.
@@ -15,8 +15,8 @@ detector remains in source for historical tests but is not loaded by the extensi
 3. Click **Load unpacked**.
 4. Select this repository's root directory.
 5. Open or reload `https://x.com/home`.
-6. Open extension settings, paste your TypeSafe API key, and save it for this browser session.
-7. Reload X. Repeat key entry after restarting Chrome or reloading the extension.
+6. Open extension settings, paste your TypeSafe API key, and save it.
+7. Reload X. The key stays saved after you restart Chrome or reload the extension.
 
 The extension requests Chrome's `storage` permission, access to the TypeSafe API,
 and content-script access to `x.com`/`twitter.com`. API requests incur usage on your key.
@@ -24,7 +24,7 @@ and content-script access to `x.com`/`twitter.com`. API requests incur usage on 
 ## How detection works
 
 The background worker calls `POST https://api.typesafe.ai/v1/systemone` with
-`model: jev-latest` and two Choice questions: a scam/slop/not-slop/uncertain verdict,
+`model: jev-latest` and two Choice questions: a scam/bot/clickbait/slop/not-slop/uncertain verdict,
 and a writing-problem category. See the [official API quickstart](https://docs.typesafe.ai/introduction/quickstart).
 The rubric asks Jev to judge substance in context, allowing ordinary conversation,
 humor, concrete information, and quotations being criticized. No phrase matching
@@ -32,12 +32,12 @@ determines the verdict. The full rubric lives in `src/jev.js`.
 Excitement, encouragement, personal celebrations, and casual reactions are explicitly
 allowed even without concrete details. Slop refers to formulaic content presenting
 empty claims as useful advice or insight, or manipulative engagement bait.
-Flagged tweets have a full amber border for slop or coral-red border for possible
-scams. Graphite assessment cards use a prominent verdict, a probability ring,
-expandable details, and a separate high-contrast Block action. The layout adapts
-to narrow cards and respects reduced-motion preferences.
+Flagged tweets have a full border: amber for slop, violet for bot spam, teal for
+clickbait, and coral red for possible scams. A compact card below the post text shows the verdict, its
+probability, expandable details, and a Block button. The layout adapts to narrow
+cards and respects reduced-motion preferences.
 
-Flags require Jev to choose slop or scam with that option's probability at least 75% (Balanced),
+Flags require Jev to choose slop, clickbait, bot, or scam with that option's probability at least 75% (Balanced),
 90% (Conservative), or 60% (Sensitive). These are application defaults, not
 validated accuracy claims. Uncertain decisions are not flagged. The displayed
 percentage is the selected verdict's probability under this rubric, not probability of AI authorship.
@@ -45,21 +45,25 @@ Scam takes priority over slop for deceptive solicitations, phishing, impersonati
 wallet-secret requests, advance-fee giveaways, and guaranteed-profit pitches.
 Crypto discussion, automated posting, and warnings about scams are not by themselves
 scam evidence. Scam verdicts display “possible scam”; Jev does not verify accounts or links.
+Bot takes priority over slop for automated or mass-posted spam: copy-paste replies,
+link drops, keyword stuffing, random codes, or off-topic promotion. Posting often or
+using automation to share useful information is not bot spam. Bot verdicts display
+“likely bot spam”; Jev cannot confirm who runs an account.
+Clickbait takes priority over slop for framing built to get clicks or shares: false
+urgency such as “JUST IN” on non-urgent content, surprising claims from an unnamed
+study, stacked exaggerated outcomes, curiosity gaps, or rage bait. News headlines and
+reports are never slop; a plain news report is neither clickbait nor slop. Clickbait
+verdicts display “likely clickbait”, and the **Flag clickbait** setting turns them off.
+Jev judges the framing and does not fact-check the claim.
 
 Requests are serialized and duplicate text reuses up to 500 cached decisions in
 worker memory. Worker restarts clear that cache. Requests time out after 15 seconds;
 API failures pause new calls for a minute and never count as clean observations.
 Reload X to retry failed posts. There is no local-rule fallback.
 
-Every slop or scam verdict with probability strictly above 80% displays a visible
-`Block @handle` button, even in Conservative mode. No observation history is
-required; snoozes, ignored accounts, the block-suggestion toggle, and other cards
-from the same account do not hide this direct action. Exactly 80% does not qualify.
+Every flagged post displays a visible `Block @handle` button. The sensitivity
+setting decides which posts get flagged. No observation history is required.
 The button opens X's native confirmation; it does not confirm the block for you.
-
-Below this direct-action threshold, optional account-level suggestions still
-require five observed posts, three flagged posts, and two finding categories.
-Those suggestions can be snoozed or suppressed for an account.
 
 ## Block handoff
 
@@ -78,8 +82,8 @@ profile.
 
 ## Privacy
 
-Post text is sent to TypeSafe. The API key is held in trusted extension session
-storage, inaccessible to content scripts, and is never included in a packaged build.
+Post text is sent to TypeSafe. The API key is held in the extension origin's
+IndexedDB, inaccessible to content scripts, and is never included in a packaged build.
 Full post text is never persisted by the extension. See [PRIVACY.md](PRIVACY.md).
 
 The toolbar popup also reports the latest local scan counts. It distinguishes
@@ -99,7 +103,7 @@ npm run check
 npm run verify
 ```
 
-For ten real API sample calls (including scams, benign crypto text, and excited reactions), put `TYPESAFE_API_KEY=...` in an ignored `.env`
+For thirteen real API sample calls (including scams, bot spam, clickbait, plain news, benign crypto text, and excited reactions), put `TYPESAFE_API_KEY=...` in an ignored `.env`
 file and run `npm run test:live`. This incurs API usage. The packaging script uses
 an allowlist and excludes `.env`. Local tests mock the network.
 

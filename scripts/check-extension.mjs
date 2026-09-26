@@ -50,6 +50,7 @@ const javascriptFiles = [
   "scripts/test-jev-browser.mjs",
   "src/detector.js",
   "src/jev.js",
+  "src/key-store.js",
   "src/jev-content.js",
   "src/background.js",
   "src/storage.js",

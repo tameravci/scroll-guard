@@ -21,7 +21,7 @@
         <p>Post text is sent to TypeSafe for analysis. API usage is billed to your key.</p>
         <label for="jevApiKey">TypeSafe API key</label>
         <input id="jevApiKey" type="password" autocomplete="off" placeholder="Paste your API key">
-        <button id="saveKey" type="button">Save key for this browser session</button>
+        <button id="saveKey" type="button">Save key</button>
         <button id="removeKey" type="button">Remove key</button>
         <p id="keyStatus" role="status"></p>
         <label class="row">
@@ -34,7 +34,7 @@
         <label class="row">
           <span>
             <strong>Sensitivity</strong>
-            <small>Conservative 90%, balanced 75%, sensitive 60%. Slop or scam above 80% always appears with a Block button.</small>
+            <small>Conservative 90%, balanced 75%, sensitive 60%. Every flagged post shows a Block button.</small>
           </span>
           <select id="sensitivity">
             <option value="conservative">Conservative — fewer flags</option>
@@ -44,25 +44,19 @@
         </label>
         <label class="row">
           <span>
-            <strong>Suggest blocking repeated offenders</strong>
-            <small>Requires 3 flagged posts among 5 observed posts and at least 2 pattern families.</small>
+            <strong>Flag clickbait</strong>
+            <small>Sensational framing built for clicks or shares, such as "JUST IN: Study reveals…". Plain news is never flagged.</small>
           </span>
-          <input id="showBlockSuggestions" type="checkbox">
+          <input id="flagClickbait" type="checkbox">
         </label>
-      </section>
-
-      <section>
-        <h2>Ignored accounts</h2>
-        <p class="muted">Account-level suggestions are suppressed. Direct Block buttons still appear for slop or scam above 80%.</p>
-        <div id="ignored" class="ignored"></div>
       </section>
 
       <section>
         <h2>Local data & privacy</h2>
         <p>
           Post text is sent to api.typesafe.ai. Handles, account history, and settings are not
-          included in requests. Your key stays in browser session storage, separate from content scripts,
-          and must be entered again after a browser restart or extension reload. Observation history stays local.
+          included in requests. Your key stays in extension storage that content scripts cannot open.
+          It stays saved after a browser restart or extension reload. Remove it here at any time. Observation history stays local.
         </p>
         <p id="stats" class="muted">Loading local history…</p>
         <button id="clearHistory" class="danger" type="button">Clear local observation history</button>
@@ -73,6 +67,7 @@
     </main>
 
     <script src="../src/storage.js"></script>
+    <script src="../src/key-store.js"></script>
     <script src="options.js"></script>
   </body>
 </html>

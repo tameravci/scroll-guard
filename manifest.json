@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Slop Spotter for X",
   "version": "0.3.0",
-  "description": "Uses TypeSafe Jev to assess slop in X posts and offers user-confirmed block suggestions.",
+  "description": "Uses TypeSafe Jev to assess slop in X posts and offers a user-confirmed block button on flagged posts.",
   "host_permissions": ["https://api.typesafe.ai/*"],
   "background": { "service_worker": "src/background.js" },
   "permissions": [

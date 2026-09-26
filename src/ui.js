@@ -16,64 +16,76 @@
       --ss-amber: #f5a623;
       --ss-amber-soft: rgba(245, 166, 35, 0.10);
       --ss-border: #343638;
-      --ss-text: #f5f3ed;
+      --ss-text: #f2f1ed;
+      --ss-muted: #9a9ca0;
+      --ss-font: "TwitterChirp", -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable Text", "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif;
       display: block;
-      font: 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      margin: 12px 14px 14px;
+      /* X's own Chirp face loads on the page, and shadow trees can use document fonts. */
+      font: 400 14px/1.4 var(--ss-font);
+      font-feature-settings: "kern" 1;
+      font-kerning: normal;
+      letter-spacing: -0.003em;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      text-rendering: optimizeLegibility;
+      /* Line up with the post text: X's text column already has its own padding. */
+      margin: 12px 0;
       box-sizing: border-box;
-      width: calc(100% - 28px);
+      width: auto;
       min-width: 0;
-      flex: none;
     }
     :host([data-slop-spotter-verdict="scam"]) {
       --ss-amber: #ff526b;
       --ss-amber-soft: rgba(255, 82, 107, 0.10);
     }
+    :host([data-slop-spotter-verdict="bot"]) {
+      --ss-amber: #a78bfa;
+      --ss-amber-soft: rgba(167, 139, 250, 0.10);
+    }
+    :host([data-slop-spotter-verdict="clickbait"]) {
+      --ss-amber: #2dd4bf;
+      --ss-amber-soft: rgba(45, 212, 191, 0.10);
+    }
     * { box-sizing: border-box; }
     .card {
       background: #17191b;
       border: 1px solid #393b3d;
-      border-radius: 16px;
+      border-radius: 12px;
       color: var(--ss-text);
       overflow: hidden;
-      box-shadow: 0 6px 18px #00000018;
     }
-    .masthead { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px 0; gap: 12px; }
-    .brand { display: flex; align-items: center; gap: 7px; color: #cbc9c2; font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
-    .brand-mark { width: 12px; height: 12px; border: 3px solid var(--ss-amber); border-radius: 50%; box-shadow: 3px -3px 0 -1px #17191b, 4px -4px 0 -1px var(--ss-amber); }
-    .classification { font: 10px/1.4 ui-monospace, SFMono-Regular, Consolas, monospace; color: var(--ss-amber); padding: 3px 7px; background: var(--ss-amber-soft); border-radius: 4px; }
+    .bar { display: flex; align-items: center; gap: 8px; padding: 6px 6px 6px 4px; }
     .summary {
       align-items: center;
       appearance: none;
       background: transparent;
       border: 0;
+      border-radius: 10px;
       color: var(--ss-text);
       cursor: pointer;
       display: flex;
+      flex: 1;
       font: inherit;
-      font-weight: 650;
-      gap: 16px;
-      padding: 14px 16px 16px;
+      gap: 8px;
+      min-width: 0;
+      padding: 6px 8px;
       text-align: left;
-      width: 100%;
     }
-    .summary:hover { background: #ffffff05; }
+    .summary:hover { background: #ffffff0a; }
     .summary:focus-visible, button:focus-visible {
-      outline: 2px solid currentColor;
-      outline-offset: -4px;
+      outline: 2px solid var(--ss-amber);
+      outline-offset: -2px;
     }
-    .summary-copy { min-width: 0; flex: 1; }
-    .verdict { display: block; font-size: 25px; font-weight: 750; letter-spacing: -0.9px; line-height: 1.15; }
-    .detail-link { display: flex; align-items: center; gap: 6px; margin-top: 9px; font-size: 12px; color: #b0b2b5; font-weight: 450; }
-    .probability { display: grid; place-content: center; text-align: center; flex: 0 0 64px; height: 64px; border-radius: 50%; background: radial-gradient(closest-side, #17191b 86%, transparent 88%), conic-gradient(var(--ss-amber) var(--ss-probability), #353739 0); }
-    .probability-value { font: 700 19px/1.1 ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing: -1px; }
-    .probability-label { font-size: 8px; letter-spacing: 0.02em; color: #a4a6a9; margin-top: 3px; }
-    .chevron { display: inline-block; font-size: 15px; transition: transform 120ms ease; }
+    .mark { width: 8px; height: 8px; flex: none; border-radius: 50%; background: var(--ss-amber); }
+    .verdict { font-weight: 600; letter-spacing: -0.011em; white-space: nowrap; }
+    .percent { color: var(--ss-amber); font-size: 13px; font-weight: 500; font-variant-numeric: tabular-nums; letter-spacing: 0; }
+    .chevron { display: block; width: 12px; height: 12px; flex: none; color: var(--ss-muted); transition: transform 160ms ease; }
     .summary[aria-expanded="true"] .chevron { transform: rotate(180deg); }
     .details {
       border-top: 1px solid var(--ss-border);
-      padding: 16px;
-      background: #121416;
+      padding: 12px 14px;
+      font-size: 13px;
+      line-height: 1.45;
     }
     .details[hidden] { display: none; }
     .evidence {
@@ -83,76 +95,58 @@
       margin: 0;
       padding: 0;
     }
-    .evidence-name { display: block; font-weight: 650; }
+    .evidence-name { display: block; font-weight: 600; letter-spacing: -0.006em; }
     .quote {
       display: block;
       margin-top: 2px;
-      opacity: 0.82;
+      color: #d6d5d1;
       overflow-wrap: anywhere;
     }
-    .fix { display: block; margin-top: 5px; color: #b0b2b5; }
+    .fix { display: block; margin-top: 4px; color: var(--ss-muted); }
     .disclaimer {
       border-top: 1px solid var(--ss-border);
       font-size: 12px;
       margin: 10px 0 0;
-      color: #a4a6a9;
+      color: var(--ss-muted);
       padding-top: 8px;
     }
-    .suggestion {
-      background: var(--ss-amber-soft);
-      border-top: 1px solid var(--ss-amber);
-      padding: 11px 12px 12px;
-    }
-    .suggestion-title { font-weight: 700; margin: 0 0 3px; }
-    .suggestion-copy { font-size: 13px; margin: 0 0 10px; opacity: 0.8; }
-    .actions { display: flex; flex-wrap: wrap; gap: 7px; }
-    .direct-actions { padding: 12px 16px; align-items: center; justify-content: space-between; border-top: 1px solid var(--ss-border); background: #ffffff03; gap: 10px; }
-    .action-note { font-size: 11px; color: #a4a6a9; }
-    .direct-actions .status { flex-basis: 100%; margin: 0; }
-    .direct-actions .status:empty { display: none; }
-    .actions button {
+    .block {
       appearance: none;
-      background: transparent;
-      border: 1px solid var(--ss-border);
+      background: #f1eee6;
+      border: 0;
       border-radius: 8px;
-      color: inherit;
+      color: #151719;
       cursor: pointer;
+      flex: none;
       font: inherit;
       font-size: 13px;
-      font-weight: 650;
-      padding: 9px 12px;
+      font-weight: 600;
+      letter-spacing: -0.006em;
+      max-width: 50%;
+      overflow: hidden;
+      padding: 7px 12px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
-    .actions button:hover { background: rgba(127, 127, 127, 0.12); }
-    .actions .block {
-      background: #f1eee6;
-      border-color: transparent;
-      color: #151719;
-      max-width: 100%;
-      overflow-wrap: anywhere;
-      transition: background 120ms ease, transform 120ms ease;
-    }
-    .actions .block::after { content: "↗"; margin-left: 12px; }
-    .actions .block:hover { background: var(--ss-amber); transform: translateY(-1px); }
-    .actions .block:active { transform: translateY(0); }
-    :host([data-slop-spotter-verdict="scam"]) .actions .block { background: #ffdce1; }
-    :host([data-slop-spotter-verdict="scam"]) .actions .block:hover { background: var(--ss-amber); }
+    .block:hover { background: var(--ss-amber); }
+    :host([data-slop-spotter-verdict="scam"]) .block { background: #ffdce1; }
+    :host([data-slop-spotter-verdict="scam"]) .block:hover { background: var(--ss-amber); }
+    :host([data-slop-spotter-verdict="bot"]) .block { background: #ebe5ff; }
+    :host([data-slop-spotter-verdict="bot"]) .block:hover { background: var(--ss-amber); }
+    :host([data-slop-spotter-verdict="clickbait"]) .block { background: #d9f7f1; }
+    :host([data-slop-spotter-verdict="clickbait"]) .block:hover { background: var(--ss-amber); }
     .status { font-size: 12px; margin: 8px 0 0; opacity: 0.75; }
-    @media (max-width: 400px) {
-      .masthead { padding: 12px 12px 0; }
-      .summary { padding: 14px 12px; gap: 10px; }
-      .verdict { font-size: 23px; }
-      .direct-actions { padding: 12px; }
-      .action-note { display: none; }
-      .actions .block { width: 100%; }
-    }
-    @media (prefers-reduced-motion: reduce) { .chevron, .actions .block { transition: none; } }
+    .card > .status { margin: 0; padding: 0 14px 10px; }
+    .card > .status:empty { display: none; }
+    @media (prefers-reduced-motion: reduce) { .chevron { transition: none; } }
   `;
 
   const BANNER_STYLES = `
     :host {
       color-scheme: light dark;
       display: block;
-      font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      font: 400 14px/1.45 "TwitterChirp", -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable Text", "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
     }
     * { box-sizing: border-box; }
     .banner {
@@ -205,44 +199,66 @@
     return li;
   }
 
-  function buildSuggestion(parsed, account, callbacks, host) {
-    const section = element("section", "suggestion");
-    const title = element("p", "suggestion-title", `Consider blocking @${parsed.handle}?`);
-    const copy = element(
-      "p",
-      "suggestion-copy",
-      `${account.flaggedCount} of ${account.observedCount} locally observed posts matched ${account.familyCount} pattern families.`
-    );
-    const actions = element("div", "actions");
-    const block = element("button", "block", `Block @${parsed.handle}`);
-    const snooze = element("button", "", "Not now");
-    const ignore = element("button", "", "Never suggest");
-    const status = element("p", "status");
-    status.setAttribute("role", "status");
+  function chevronIcon() {
+    const ns = "http://www.w3.org/2000/svg";
+    const svg = root.document.createElementNS(ns, "svg");
+    svg.setAttribute("class", "chevron");
+    svg.setAttribute("viewBox", "0 0 12 12");
+    svg.setAttribute("aria-hidden", "true");
+    const path = root.document.createElementNS(ns, "path");
+    path.setAttribute("d", "M2.5 4.5 6 8l3.5-3.5");
+    path.setAttribute("fill", "none");
+    path.setAttribute("stroke", "currentColor");
+    path.setAttribute("stroke-width", "1.6");
+    path.setAttribute("stroke-linecap", "round");
+    path.setAttribute("stroke-linejoin", "round");
+    svg.append(path);
+    return svg;
+  }
 
-    block.type = "button";
-    block.setAttribute("aria-label", `Block @${parsed.handle}`);
-    snooze.type = "button";
-    ignore.type = "button";
+  // X wraps posts in nested flex rows. A card inside a row steals width from
+  // the post text, so mount into the nearest block or column box above the text.
+  function annotationContainer(article) {
+    const view = article.ownerDocument?.defaultView;
+    const text = article.querySelector("[data-testid='tweetText']");
+    if (!text || typeof view?.getComputedStyle !== "function") {
+      return article;
+    }
 
-    block.addEventListener("click", () => {
-      status.textContent = "Opening the verified X profile and native confirmation…";
-      callbacks.onBlock?.();
-    });
-    snooze.addEventListener("click", async () => {
-      await callbacks.onSnooze?.();
-      host.dataset.slopSpotterSuggestion = "false";
-      section.remove();
-    });
-    ignore.addEventListener("click", async () => {
-      await callbacks.onIgnore?.();
-      host.dataset.slopSpotterSuggestion = "false";
-      section.remove();
-    });
+    for (let node = text.parentElement; node && article.contains(node); node = node.parentElement) {
+      const style = view.getComputedStyle(node);
+      const row =
+        /flex|box/.test(style.display) &&
+        !String(style.flexDirection || "row").startsWith("column");
+      if (!row) {
+        return node;
+      }
+    }
+    return article;
+  }
 
-    actions.append(block, snooze, ignore);
-    section.append(title, copy, actions, status);
-    return section;
+  // Match the card's side edges to the post text's content box.
+  function alignWithText(article, host) {
+    const view = article.ownerDocument?.defaultView;
+    const text = article.querySelector("[data-testid='tweetText']");
+    const parent = host.parentElement;
+    if (!text || !parent || typeof view?.getComputedStyle !== "function") {
+      return;
+    }
+    const textBox = text.getBoundingClientRect();
+    const parentBox = parent.getBoundingClientRect();
+    if (!textBox.width || !parentBox.width) {
+      return;
+    }
+    const textStyle = view.getComputedStyle(text);
+    const parentStyle = view.getComputedStyle(parent);
+    const px = (value) => Number.parseFloat(value) || 0;
+    const left = textBox.left + px(textStyle.paddingLeft) -
+      (parentBox.left + px(parentStyle.borderLeftWidth) + px(parentStyle.paddingLeft));
+    const right = parentBox.right - px(parentStyle.borderRightWidth) - px(parentStyle.paddingRight) -
+      (textBox.right - px(textStyle.paddingRight));
+    host.style.marginLeft = `${Math.max(0, Math.round(left))}px`;
+    host.style.marginRight = `${Math.max(0, Math.round(right))}px`;
   }
 
   function mountPostAnnotation(article, payload, callbacks) {
@@ -251,10 +267,10 @@
 
     const host = element("div");
     host.setAttribute(HOST_ATTRIBUTE, "");
-    const verdict = payload.detection.isScam ? "scam" : "slop";
+    const { isScam, isBot, isClickbait } = payload.detection;
+    const verdict = isScam ? "scam" : isBot ? "bot" : isClickbait ? "clickbait" : "slop";
     host.dataset.slopSpotterVerdict = verdict;
     host.dataset.slopSpotterHandle = payload.parsed.handle.toLowerCase();
-    host.dataset.slopSpotterSuggestion = String(payload.account?.shouldSuggest === true);
     host.addEventListener("click", (event) => event.stopPropagation());
     host.addEventListener("keydown", (event) => event.stopPropagation());
 
@@ -262,29 +278,19 @@
     const style = element("style", "", CARD_STYLES);
     const card = element("aside", "card");
     card.setAttribute("aria-label", "Slop Spotter finding");
-    const masthead = element("div", "masthead");
-    const brand = element("span", "brand");
-    const mark = element("span", "brand-mark");
-    mark.setAttribute("aria-hidden", "true");
-    brand.append(mark, element("span", "", "Slop Spotter"));
-    masthead.append(brand, element("span", "classification", verdict === "scam" ? "SCAM SIGNAL" : "SLOP SIGNAL"));
-
+    const verdictLabel = { scam: "Possible scam", bot: "Likely bot spam", clickbait: "Likely clickbait", slop: "Likely slop" }[verdict];
+    const percent = Math.round(payload.detection.probability * 100);
     const summary = element("button", "summary");
     summary.type = "button";
+    summary.title = "Slop Spotter: view Jev assessment";
+    summary.setAttribute("aria-label", `Slop Spotter: ${verdictLabel}, ${percent}% probability. View Jev assessment`);
     summary.setAttribute("aria-expanded", "false");
     summary.setAttribute("aria-controls", "finding-details");
-    const copy = element("span", "summary-copy");
-    const detailLink = element("span", "detail-link", "View Jev assessment");
-    detailLink.append(element("span", "chevron", "⌄"));
-    copy.append(element("span", "verdict", verdict === "scam" ? "Possible scam" : "Likely slop"), detailLink);
-    const probability = element("span", "probability");
-    const percent = Math.round(payload.detection.probability * 100);
-    probability.style.setProperty("--ss-probability", `${percent}%`);
-    probability.append(element("span", "probability-value", `${percent}%`), element("span", "probability-label", "probability"));
-    summary.append(
-      copy,
-      probability
-    );
+    const mark = element("span", "mark");
+    mark.setAttribute("aria-hidden", "true");
+    summary.append(mark, element("span", "verdict", verdictLabel), element("span", "percent", `${percent}%`), chevronIcon());
+    const bar = element("div", "bar");
+    bar.append(summary);
 
     const details = element("div", "details");
     details.id = "finding-details";
@@ -294,7 +300,12 @@
     const disclaimer = element(
       "p",
       "disclaimer",
-      verdict === "scam" ? "This is a model assessment, not verification of the account or linked website." : "Jev's writing-quality assessment is not proof that AI wrote this post."
+      {
+        scam: "This is a model assessment, not verification of the account or linked website.",
+        bot: "This is a model assessment. Jev cannot confirm that a bot runs this account.",
+        clickbait: "This is a model assessment of the framing. Jev has not fact-checked the claim.",
+        slop: "Jev's writing-quality assessment is not proof that AI wrote this post."
+      }[verdict]
     );
     details.append(list, disclaimer);
 
@@ -304,27 +315,27 @@
       details.hidden = expanded;
     });
 
-    card.append(masthead, summary, details);
+    card.append(bar);
     if (payload.detection.canBlock) {
-      const actions = element("div", "actions direct-actions");
       const block = element("button", "block", `Block @${payload.parsed.handle}`);
       block.type = "button";
       block.setAttribute("aria-label", `Block @${payload.parsed.handle}`);
+      block.title = "Opens X's block confirmation";
       const status = element("p", "status");
       status.setAttribute("role", "status");
       block.addEventListener("click", () => {
         status.textContent = "Opening X's block confirmation…";
         callbacks.onBlock?.();
       });
-      actions.append(element("span", "action-note", "You confirm on X"), block, status);
-      card.append(actions);
-    } else if (payload.account?.shouldSuggest) {
-      card.append(buildSuggestion(payload.parsed, payload.account, callbacks, host));
+      bar.append(block);
+      card.append(status, details);
+    } else {
+      card.append(details);
     }
     shadow.append(style, card);
-    article.classList.add("slop-spotter-flagged");
     article.dataset.slopSpotterVerdict = verdict;
-    article.append(host);
+    annotationContainer(article).append(host);
+    alignWithText(article, host);
     return host;
   }
 
@@ -333,9 +344,8 @@
       ?.querySelectorAll?.(`[${HOST_ATTRIBUTE}]`)
       .forEach((host) => host.remove());
     root.document
-      ?.querySelectorAll?.("article.slop-spotter-flagged")
+      ?.querySelectorAll?.("article[data-slop-spotter-verdict]")
       .forEach((article) => {
-        article.classList.remove("slop-spotter-flagged");
         delete article.dataset.slopSpotterVerdict;
       });
   }

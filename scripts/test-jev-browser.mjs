@@ -29,12 +29,13 @@ a { color:inherit; text-decoration:none; } .meta,.actions { color:#687684; font-
 let calls = 0;
 let fail = false;
 let context;
+const launchOptions = {
+  headless: true,
+  ...(process.env.CHROME_EXECUTABLE ? { executablePath: process.env.CHROME_EXECUTABLE } : { channel: "chromium" }),
+  args: [`--disable-extensions-except=${project}`, `--load-extension=${project}`]
+};
 try {
-  context = await chromium.launchPersistentContext(profile, {
-    headless: true,
-    ...(process.env.CHROME_EXECUTABLE ? { executablePath: process.env.CHROME_EXECUTABLE } : { channel: "chromium" }),
-    args: [`--disable-extensions-except=${project}`, `--load-extension=${project}`]
-  });
+  context = await chromium.launchPersistentContext(profile, launchOptions);
   await context.route("https://x.com/**", (route) => route.fulfill({ contentType: "text/html", body: fixture }));
   if (!live) {
     await context.route("https://api.typesafe.ai/**", async (route) => {
@@ -48,8 +49,8 @@ try {
       await route.fulfill({ contentType: "application/json", body: JSON.stringify({
         model: "jev-browser-test",
         answers: {
-          slop: { type: "choice", choice: scam ? "scam" : slop ? "slop" : "not_slop", confidence: 1, probabilities: { slop: +slop, scam: scam ? 0.81 : 0, not_slop: scam ? 0.19 : +!slop, uncertain: 0 } },
-          category: { type: "choice", choice: scam ? "scam" : slop ? "hype" : "none", confidence: 1, probabilities: { generic: 0, hype: +slop, formulaic: 0, scam: +scam, none: +(!slop && !scam) } }
+          slop: { type: "choice", choice: scam ? "scam" : slop ? "slop" : "not_slop", confidence: 1, probabilities: { slop: +slop, scam: scam ? 0.93 : 0, bot: 0, clickbait: 0, not_slop: scam ? 0.07 : +!slop, uncertain: 0 } },
+          category: { type: "choice", choice: scam ? "scam" : slop ? "hype" : "none", confidence: 1, probabilities: { generic: 0, hype: +slop, formulaic: 0, scam: +scam, bot: 0, clickbait: 0, none: +(!slop && !scam) } }
         }
       }) });
     });
@@ -66,14 +67,13 @@ try {
   assert.equal(calls, 0);
   await options.locator("#jevApiKey").fill(key);
   await options.locator("#saveKey").click();
-  await options.locator("#keyStatus").filter({ hasText: "Key saved" }).waitFor();
+  await options.locator("#keyStatus").filter({ hasText: /^Key saved/ }).waitFor();
   assert.equal(await options.locator("#jevApiKey").inputValue(), "");
   if (!live) {
     await options.locator("#sensitivity").selectOption("conservative");
-    await options.locator("#showBlockSuggestions").uncheck();
     await options.waitForFunction(async () => {
       const { slopSpotterStateV1: state } = await chrome.storage.local.get("slopSpotterStateV1");
-      return state?.settings.sensitivity === "conservative" && state.settings.showBlockSuggestions === false;
+      return state?.settings.sensitivity === "conservative";
     });
   }
   await feed.reload();
@@ -86,17 +86,65 @@ try {
   ` });
   for (const host of await feed.locator("[data-slop-spotter-host]").all()) {
     const bounds = await host.boundingBox();
-    assert.ok(bounds && bounds.width > 200 && bounds.height > 100,
+    const textLeft = await host.evaluate((node) => {
+      const text = node.closest("article").querySelector("[data-testid=tweetText]");
+      return text.getBoundingClientRect().left + parseFloat(getComputedStyle(text).paddingLeft);
+    });
+    assert.ok(bounds && Math.abs(bounds.x - textLeft) < 1, `Card is not left-aligned with padded post text: ${bounds?.x} vs ${textLeft}`);
+    assert.ok(bounds && bounds.width > 200 && bounds.height > 30,
       `Assessment card collapsed in flex layout: ${JSON.stringify(bounds)}`);
   }
+  // X can lay a post out as a flex row. The card must not squeeze the post text.
+  const rowFeed = await context.newPage();
+  await rowFeed.addInitScript(() => document.addEventListener("DOMContentLoaded", () => {
+    // Match X: the article is a flex row. An inner row holds the avatar rail and
+    // a column with the post body.
+    const style = document.createElement("style");
+    style.textContent = `article[data-testid="tweet"], .x-row { display:flex; flex-direction:row; }
+      .x-row { flex:0 1 auto; } .x-rail { flex:none; width:48px; } .x-body { display:flex; flex-direction:column; flex:1 1 auto; min-width:0; }`;
+    document.head.append(style);
+    for (const article of document.querySelectorAll("article")) {
+      const row = document.createElement("div");
+      const rail = document.createElement("div");
+      const body = document.createElement("div");
+      row.className = "x-row";
+      rail.className = "x-rail";
+      body.className = "x-body";
+      body.append(...article.children);
+      row.append(rail, body);
+      article.append(row);
+    }
+  }));
+  await rowFeed.goto("https://x.com/home");
+  await rowFeed.waitForFunction(() => document.querySelectorAll("[data-slop-spotter-host]").length === 2, null, { timeout: 60000 });
+  for (const article of await rowFeed.locator("article:has([data-slop-spotter-host])").all()) {
+    const text = await article.locator("[data-testid=tweetText]").boundingBox();
+    const card = await article.locator("[data-slop-spotter-host]").boundingBox();
+    assert.ok(text && text.width > 300, `Post text collapsed in row layout: ${JSON.stringify(text)}`);
+    assert.ok(card && card.width > 200 && card.height > 30 && card.y >= text.y + text.height,
+      `Assessment card is not below the post in row layout: ${JSON.stringify(card)}`);
+    const textLeft = text.x + await article.locator("[data-testid=tweetText]").evaluate((node) => parseFloat(getComputedStyle(node).paddingLeft));
+    assert.ok(Math.abs(card.x - textLeft) < 1, `Card is not left-aligned with the post text: ${card.x} vs ${textLeft}`);
+  }
+  await rowFeed.close();
   assert.equal(await feed.locator("[data-slop-spotter-host]").count(), 2, JSON.stringify(diagnostics));
   assert.match(await feed.locator("article").nth(1).locator("[data-slop-spotter-host]").evaluate((host) => host.shadowRoot.textContent), /Likely slop/);
   assert.match(await feed.locator("article").nth(2).locator("[data-slop-spotter-host]").evaluate((host) => host.shadowRoot.textContent), /Possible scam/);
   for (const [index, verdict, color] of [[1, "slop", "245, 166, 35"], [2, "scam", "255, 82, 107"]]) {
     const card = feed.locator("article").nth(index);
     assert.equal(await card.getAttribute("data-slop-spotter-verdict"), verdict);
-    const shadow = await card.evaluate((node) => getComputedStyle(node).boxShadow);
-    assert.ok(shadow.includes(color) && shadow.includes("inset") && shadow.includes("3px"), shadow);
+    // X paints hover backgrounds on the post's children. The frame must stay above them.
+    await feed.addStyleTag({ content: "article:hover > div { background: rgb(22, 24, 28) !important; position: relative; }" });
+    await card.hover();
+    // X rewrites the article's class attribute on hover. The frame must survive it.
+    await card.evaluate((node) => { node.className = "css-175oi2r r-hover"; });
+    const frame = await card.evaluate((node) => {
+      const style = getComputedStyle(node, "::after");
+      return { shadow: style.boxShadow, z: style.zIndex, position: style.position };
+    });
+    assert.ok(frame.shadow.includes(color) && frame.shadow.includes("inset") && frame.shadow.includes("3px"), JSON.stringify(frame));
+    assert.equal(frame.position, "absolute");
+    assert.ok(Number(frame.z) >= 2, JSON.stringify(frame));
     const button = card.locator(".summary");
     await button.click();
     assert.equal(await button.getAttribute("aria-expanded"), "true");
@@ -140,6 +188,12 @@ try {
     awaitPromise: true, returnByValue: true
   });
   assert.equal(access.result.value, false, "Content scripts must not access the API key store");
+  const secrets = await cdp.send("Runtime.evaluate", {
+    contextId: contentWorld.id,
+    expression: "(async () => (await indexedDB.databases()).some((db) => db.name === 'slopSpotterSecrets'))()",
+    awaitPromise: true, returnByValue: true
+  });
+  assert.equal(secrets.result.value, false, "Content scripts must not see the API key database");
   await cdp.detach();
   if (!live) {
     assert.equal(calls, 3);
@@ -152,13 +206,13 @@ try {
     }, samples[0]);
     await feed.waitForFunction(() => document.querySelectorAll("[data-slop-spotter-host]").length === 1 && document.querySelectorAll("[data-slop-spotter-processed]").length === 3);
     assert.equal(calls, 3, "Recycled cards must reclassify and reuse cached text decisions");
-    assert.equal(await feed.locator("article").nth(1).evaluate((node) => node.classList.contains("slop-spotter-flagged")), false);
+    assert.equal(await feed.locator("article").nth(1).evaluate((node) => node.hasAttribute("data-slop-spotter-verdict")), false);
     await options.locator("#removeKey").click();
     await options.locator("#keyStatus").filter({ hasText: "No API key" }).waitFor();
     fail = true;
     await options.locator("#jevApiKey").fill(key);
     await options.locator("#saveKey").click();
-    await options.locator("#keyStatus").filter({ hasText: "Key saved" }).waitFor();
+    await options.locator("#keyStatus").filter({ hasText: /^Key saved/ }).waitFor();
     await feed.reload();
     await feed.waitForFunction(() => document.querySelectorAll("[data-slop-spotter-processed]").length === 3);
     assert.equal(calls, 4, "Provider failure should activate cooldown");
@@ -166,6 +220,13 @@ try {
     const popup = await context.newPage();
     await popup.goto(`chrome-extension://${extensionId}/popup/popup.html`);
     await popup.locator("#diagnostics").filter({ hasText: "Scanner error" }).waitFor();
+    // The key must survive a restart. Chrome clears session storage then, as it
+    // does on an extension reload.
+    await context.close();
+    context = await chromium.launchPersistentContext(profile, launchOptions);
+    const reopened = await context.newPage();
+    await reopened.goto(`chrome-extension://${extensionId}/options/options.html`);
+    await reopened.locator("#keyStatus").filter({ hasText: /^Key saved/ }).waitFor();
   }
   console.log(`${live ? "LIVE" : "MOCK"} browser flow passed: key entry, worker requests, feed annotations, and private local storage${live ? "" : ", cache reuse and provider errors"}.`);
 } finally {
