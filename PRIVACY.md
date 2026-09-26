@@ -14,7 +14,7 @@ text is included in the Jev request state. Text itself may contain personal info
 The extension stores the following in `chrome.storage.local`:
 
 - whether detection is enabled;
-- the selected sensitivity and whether clickbait flags are on;
+- the selected strictness and which verdict types are flagged;
 - author handles, used for the local post and account counts;
 - a salted SHA-256 fingerprint for each observed post, used for deduplication;
 - whether the post matched and the identifiers of its pattern families;

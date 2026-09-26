@@ -27,6 +27,12 @@ a { color:inherit; text-decoration:none; } .meta,.actions { color:#687684; font-
 @media(prefers-color-scheme:dark) { body { background:#000; color:#e7e9ea; } main,h1,article { border-color:#2f3336; } .meta,.actions { color:#8899a6; } }
 </style></head><body><main><h1>For you</h1>${samples.map((text, i) => `<article data-testid="tweet"><div class="author"><span class="avatar">${["JL","TS","CG"][i]}</span><div><strong>${["Jamie Lee","Tomorrow Starts","Crypto Giveaway"][i]}</strong><br><a class="meta" href="/TestAccount/status/${100 + i}">@TestAccount · <time>2h</time></a></div></div><div class="post" data-testid="tweetText">${text}</div><div class="actions"><span>♡ 24</span><span>↻ 8</span><span>↗ Share</span><span>⋯</span></div></article>`).join("")}</main></body></html>`;
 let calls = 0;
+// Requests for the long-feed priority test, in the order the worker sent them.
+const longRequests = [];
+const longFixture = `<html><head><meta charset="utf-8"><style>
+body { margin:0; font:15px/1.5 Arial,sans-serif; } main { max-width:600px; margin:auto; }
+article { height:280px; border-bottom:1px solid #ddd; padding:16px; box-sizing:border-box; }
+</style></head><body><main>${Array.from({ length: 30 }, (_, i) => `<article data-testid="tweet"><div data-testid="User-Name"><span>Feed ${i}</span><span>@Feed${i}</span></div><a href="/Feed${i}/status/${900 + i}"><time>1h</time></a><div data-testid="tweetText">Long feed post number ${i} about ordinary things.</div></article>`).join("")}</main></body></html>`;
 let fail = false;
 let context;
 const launchOptions = {
@@ -36,12 +42,15 @@ const launchOptions = {
 };
 try {
   context = await chromium.launchPersistentContext(profile, launchOptions);
-  await context.route("https://x.com/**", (route) => route.fulfill({ contentType: "text/html", body: fixture }));
+  await context.route("https://x.com/**", (route) => route.fulfill({ contentType: "text/html",
+    body: new URL(route.request().url()).pathname === "/long" ? longFixture : fixture }));
   if (!live) {
     await context.route("https://api.typesafe.ai/**", async (route) => {
-      calls += 1;
-      assert.equal(route.request().headers().authorization, `Bearer ${key}`);
       const request = route.request().postDataJSON();
+      const longMatch = /^Long feed post number (\d+)/u.exec(request.state.post);
+      if (longMatch) longRequests.push(Number(longMatch[1]));
+      else calls += 1;
+      assert.equal(route.request().headers().authorization, `Bearer ${key}`);
       assert.deepEqual(Object.keys(request.state), ["post"]);
       if (fail) { await route.fulfill({ status: 429, body: "Test quota failure" }); return; }
       const slop = request.state.post === samples[1];
@@ -50,7 +59,7 @@ try {
         model: "jev-browser-test",
         answers: {
           slop: { type: "choice", choice: scam ? "scam" : slop ? "slop" : "not_slop", confidence: 1, probabilities: { slop: +slop, scam: scam ? 0.93 : 0, bot: 0, clickbait: 0, not_slop: scam ? 0.07 : +!slop, uncertain: 0 } },
-          category: { type: "choice", choice: scam ? "scam" : slop ? "hype" : "none", confidence: 1, probabilities: { generic: 0, hype: +slop, formulaic: 0, scam: +scam, bot: 0, clickbait: 0, none: +(!slop && !scam) } }
+          category: { type: "choice", choice: scam ? "scam" : slop ? "cadence" : "none", confidence: 1, probabilities: { contrast: 0, setup: 0, colon_reveal: 0, puffery: 0, buzzwords: 0, cadence: +slop, formatting: 0, scam: +scam, clickbait: 0, bot: 0, none: +(!slop && !scam) } }
         }
       }) });
     });
@@ -70,7 +79,7 @@ try {
   await options.locator("#keyStatus").filter({ hasText: /^Key saved/ }).waitFor();
   assert.equal(await options.locator("#jevApiKey").inputValue(), "");
   if (!live) {
-    await options.locator("#sensitivity").selectOption("conservative");
+    await options.locator(".segment", { hasText: "Fewer" }).click();
     await options.waitForFunction(async () => {
       const { slopSpotterStateV1: state } = await chrome.storage.local.get("slopSpotterStateV1");
       return state?.settings.sensitivity === "conservative";
@@ -127,8 +136,29 @@ try {
     assert.ok(Math.abs(card.x - textLeft) < 1, `Card is not left-aligned with the post text: ${card.x} vs ${textLeft}`);
   }
   await rowFeed.close();
+  if (!live) {
+    // Only posts near the screen are requested, on-screen posts first in reading order,
+    // and scrolling brings the next posts in.
+    const longFeed = await context.newPage();
+    await longFeed.setViewportSize({ width: 800, height: 700 });
+    await longFeed.goto("https://x.com/long");
+    await longFeed.waitForFunction(() => document.querySelectorAll("[data-slop-spotter-processed]").length >= 5, null, { timeout: 30000 });
+    await longFeed.waitForTimeout(1000);
+    const first = [...longRequests];
+    assert.ok(first.length >= 5 && first.length <= 8, `Expected only near-screen posts, got ${JSON.stringify(first)}`);
+    assert.deepEqual(first.slice(0, 3), [0, 1, 2], `On-screen posts must go first: ${JSON.stringify(first)}`);
+    assert.ok(Math.max(...first) < 8, `No far-off post may be requested: ${JSON.stringify(first)}`);
+    for (let y = 700; y <= 7700; y += 700) {
+      await longFeed.evaluate((top) => window.scrollTo(0, top), y);
+      await longFeed.waitForTimeout(700);
+    }
+    await longFeed.waitForFunction(() => document.querySelectorAll("[data-slop-spotter-processed]").length === 30, null, { timeout: 30000 });
+    assert.equal(new Set(longRequests).size, 30);
+    assert.equal(longRequests.length, 30, "No post may be requested twice");
+    await longFeed.close();
+  }
   assert.equal(await feed.locator("[data-slop-spotter-host]").count(), 2, JSON.stringify(diagnostics));
-  assert.match(await feed.locator("article").nth(1).locator("[data-slop-spotter-host]").evaluate((host) => host.shadowRoot.textContent), /Likely slop/);
+  assert.match(await feed.locator("article").nth(1).locator("[data-slop-spotter-host]").evaluate((host) => host.shadowRoot.textContent), /Likely AI slop/);
   assert.match(await feed.locator("article").nth(2).locator("[data-slop-spotter-host]").evaluate((host) => host.shadowRoot.textContent), /Possible scam/);
   for (const [index, verdict, color] of [[1, "slop", "245, 166, 35"], [2, "scam", "255, 82, 107"]]) {
     const card = feed.locator("article").nth(index);
@@ -214,8 +244,14 @@ try {
     await options.locator("#saveKey").click();
     await options.locator("#keyStatus").filter({ hasText: /^Key saved/ }).waitFor();
     await feed.reload();
-    await feed.waitForFunction(() => document.querySelectorAll("[data-slop-spotter-processed]").length === 3);
-    assert.equal(calls, 4, "Provider failure should activate cooldown");
+    await feed.waitForTimeout(1500);
+    // The three posts run in parallel, so each sends one request before the first 429 returns.
+    assert.equal(calls, 6, `Each post should try once (calls: ${calls})`);
+    // Retries come after 4 s, but the worker's pause blocks them without new requests.
+    await feed.waitForTimeout(5000);
+    assert.equal(calls, 6, `The pause must block retries (calls: ${calls})`);
+    // Failed posts stay unchecked so they retry after the pause; they are not dropped.
+    assert.equal(await feed.locator("[data-slop-spotter-processed]").count(), 0);
     assert.equal(await feed.locator("[data-slop-spotter-host]").count(), 0);
     const popup = await context.newPage();
     await popup.goto(`chrome-extension://${extensionId}/popup/popup.html`);

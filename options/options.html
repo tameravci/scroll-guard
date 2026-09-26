@@ -3,64 +3,53 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Slop Spotter settings</title>
+    <title>Slop Spotter setup</title>
+    <link rel="stylesheet" href="../src/panel.css">
     <link rel="stylesheet" href="options.css">
   </head>
   <body>
     <main>
-      <header>
-        <img src="../icons/icon-128.png" width="64" height="64" alt="">
+      <header class="brand">
+        <img src="../icons/icon-128.png" width="44" height="44" alt="">
         <div>
-          <h1>Slop Spotter for X</h1>
-          <p>Jev assesses writing quality. Its verdict does not prove AI authorship.</p>
+          <h1>Slop Spotter</h1>
+          <p>Flags AI slop, clickbait, bot spam, and scams on X with TypeSafe Jev.</p>
         </div>
       </header>
 
-      <section>
-        <h2>Detection</h2>
-        <p>Post text is sent to TypeSafe for analysis. API usage is billed to your key.</p>
-        <label for="jevApiKey">TypeSafe API key</label>
-        <input id="jevApiKey" type="password" autocomplete="off" placeholder="Paste your API key">
-        <button id="saveKey" type="button">Save key</button>
-        <button id="removeKey" type="button">Remove key</button>
-        <p id="keyStatus" role="status"></p>
-        <label class="row">
-          <span>
-            <strong>Highlight slop and possible scams</strong>
-            <small>Runs only on x.com and twitter.com.</small>
-          </span>
-          <input id="enabled" type="checkbox">
-        </label>
-        <label class="row">
-          <span>
-            <strong>Sensitivity</strong>
-            <small>Conservative 90%, balanced 75%, sensitive 60%. Every flagged post shows a Block button.</small>
-          </span>
-          <select id="sensitivity">
-            <option value="conservative">Conservative — fewer flags</option>
-            <option value="balanced">Balanced</option>
-            <option value="sensitive">Sensitive — more flags</option>
-          </select>
-        </label>
-        <label class="row">
-          <span>
-            <strong>Flag clickbait</strong>
-            <small>Sensational framing built for clicks or shares, such as "JUST IN: Study reveals…". Plain news is never flagged.</small>
-          </span>
-          <input id="flagClickbait" type="checkbox">
-        </label>
+      <section class="card" id="keyCard">
+        <div class="step"><span class="step-no" aria-hidden="true">1</span><h2>Connect Jev</h2></div>
+        <p class="lead">Jev reads each post on X and returns a verdict. Usage is billed to your API key.</p>
+        <form id="keyForm" class="key-form">
+          <input id="jevApiKey" class="text-input" type="password" autocomplete="off" placeholder="Paste your Jev API key" aria-label="Jev API key">
+          <button id="saveKey" class="button primary" type="submit">Save key</button>
+        </form>
+        <div id="keyActions" class="key-actions" hidden>
+          <button id="replaceKey" class="button" type="button">Replace</button>
+          <button id="removeKey" class="button danger" type="button">Remove key</button>
+        </div>
+        <p id="keyStatus" class="status" role="status"></p>
+        <a class="console-link" href="https://console.typesafe.ai/keys" target="_blank" rel="noopener">Get an API key at console.typesafe.ai/keys ↗</a>
       </section>
 
-      <section>
-        <h2>Local data & privacy</h2>
-        <p>
-          Post text is sent to api.typesafe.ai. Handles, account history, and settings are not
-          included in requests. Your key stays in extension storage that content scripts cannot open.
-          It stays saved after a browser restart or extension reload. Remove it here at any time. Observation history stays local.
-        </p>
-        <p id="stats" class="muted">Loading local history…</p>
-        <button id="clearHistory" class="danger" type="button">Clear local observation history</button>
-        <a href="../PRIVACY.md" target="_blank">Read the full privacy notice</a>
+      <section class="card" id="prefsCard" aria-disabled="true">
+        <div class="step"><span class="step-no" aria-hidden="true">2</span><h2>Choose what to flag</h2></div>
+        <div id="panel"></div>
+        <p class="note">You can change these any time from the toolbar icon. Each flagged post gets a Block button that opens X's own confirmation.</p>
+      </section>
+
+      <section class="privacy">
+        <h2>Privacy &amp; local data</h2>
+        <ul>
+          <li>Post text goes to TypeSafe for analysis. Handles, history, and settings stay on this device.</li>
+          <li>Your key stays in extension storage that pages on X cannot read.</li>
+          <li>Nothing is blocked automatically.</li>
+        </ul>
+        <p id="stats" class="stats"></p>
+        <div class="row">
+          <button id="clearHistory" class="button danger" type="button">Clear local history</button>
+          <a href="../PRIVACY.md" target="_blank">Full privacy notice</a>
+        </div>
       </section>
 
       <p id="status" class="status" role="status" aria-live="polite"></p>
@@ -68,6 +57,7 @@
 
     <script src="../src/storage.js"></script>
     <script src="../src/key-store.js"></script>
+    <script src="../src/panel.js"></script>
     <script src="options.js"></script>
   </body>
 </html>

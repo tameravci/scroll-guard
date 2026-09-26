@@ -2,7 +2,7 @@
   "use strict";
 
   const api = root.SlopSpotter;
-  if (!api?.detectSlop || !api?.parsePost || !api?.recordObservation) {
+  if (!api?.detectSlop || !api?.parsePost || !api?.recordObservation || !api?.scheduler) {
     return;
   }
 
@@ -13,11 +13,19 @@
   let postInputs = new WeakMap();
   let diagnosticOutcomes = new WeakMap();
   let lastProcessingError = "";
+  let retries = new WeakMap();
+  let inFlight = 0;
+  let wakeTimer;
+  let wakeAt = 0;
+  let scrollListening = false;
+  const scheduler = api.scheduler;
+  const scroll = scheduler.createScrollTracker();
 
   function safeErrorMessage(error) {
     const name = String(error?.name || "Error");
     const message = String(error?.message || "Unknown content-script failure");
-    return `${name}: ${message}`.slice(0, 180);
+    // The worker writes plain messages; only unexpected errors keep their type name.
+    return (name === "Error" ? message : `${name}: ${message}`).slice(0, 180);
   }
 
   function publishDiagnostics() {
@@ -62,7 +70,7 @@
     scanScheduled = true;
     const run = () => {
       scanScheduled = false;
-      scanVisiblePosts();
+      pump();
     };
     if (typeof root.requestIdleCallback === "function") {
       root.requestIdleCallback(run, { timeout: 500 });
@@ -107,7 +115,7 @@
     try {
       const detection = await api.detectSlop(parsed.text, {
         sensitivity: settings.sensitivity,
-        flagClickbait: settings.flagClickbait
+        verdicts: settings.verdicts
       });
       if (!current()) return;
       const fingerprint = await api.fingerprintPost(
@@ -143,6 +151,18 @@
       article.dataset.slopSpotterProcessed = String(expectedGeneration);
     } catch (error) {
       if (!current()) return;
+      if (error.retryable) {
+        // A busy or paused worker is temporary: keep the post and ask again after a backoff.
+        const attempts = (retries.get(article)?.attempts || 0) + 1;
+        const at = Date.now() + scheduler.retryDelay(attempts);
+        retries.set(article, { attempts, at, input });
+        wakeLater(at - Date.now());
+        if (error.visible) {
+          lastProcessingError = safeErrorMessage(error);
+          diagnosticOutcomes.set(article, { parsed: false, evidence: false, highlighted: false, error: true });
+        }
+        throw error;
+      }
       // Avoid repeated paid requests on every DOM mutation after a failure.
       article.dataset.slopSpotterProcessed = String(expectedGeneration);
       lastProcessingError = safeErrorMessage(error);
@@ -161,13 +181,61 @@
     }
   }
 
-  function scanVisiblePosts() {
-    const currentGeneration = generation;
-    const articles = api.findPosts(root.document);
+  function wakeLater(delay) {
+    const at = Date.now() + Math.max(0, delay);
+    if (wakeTimer && wakeAt <= at) return;
+    root.clearTimeout(wakeTimer);
+    wakeAt = at;
+    wakeTimer = root.setTimeout(() => {
+      wakeTimer = undefined;
+      scheduleScan();
+    }, Math.max(0, delay));
+  }
+
+  // True when the post has no current verdict and is not already being checked.
+  function needsCheck(article) {
+    const parsed = api.parsePost(article);
+    if (!parsed) return false;
+    const input = JSON.stringify([parsed.handle, parsed.statusId, parsed.text]);
+    if (postInputs.get(article) !== input) return true;
+    const current = String(generation);
+    if (article.dataset.slopSpotterPending === current) return false;
+    const retry = retries.get(article);
+    if (retry && retry.input === input && retry.at > Date.now()) return false;
+    const processed = article.dataset.slopSpotterProcessed === current;
+    const flagged = article.dataset.slopSpotterFlagged === current;
+    // X can re-render a flagged card without the annotation; remount from the cache.
+    return !processed || (flagged && !article.querySelector("[data-slop-spotter-host]"));
+  }
+
+  // Keep a few requests open and always spend the next one on the post the reader
+  // is most likely to look at: on screen first, then ahead, then just behind.
+  function pump() {
     publishDiagnostics();
-    articles.forEach((article) => {
-      processPost(article, currentGeneration).catch(() => undefined);
-    });
+    if (!settings?.enabled) return;
+    if (scheduler.isFling(scroll.speed())) {
+      wakeLater(200);
+      return;
+    }
+    const viewport = root.innerHeight || 800;
+    const queue = scheduler.order(
+      api.findPosts(root.document)
+        .filter(needsCheck)
+        .map((article) => ({ article, rect: article.getBoundingClientRect() })),
+      viewport,
+      scroll.direction()
+    );
+    const currentGeneration = generation;
+    for (const { article } of queue) {
+      if (inFlight >= scheduler.MAX_IN_FLIGHT) break;
+      inFlight += 1;
+      processPost(article, currentGeneration)
+        .then(() => retries.delete(article), () => undefined)
+        .finally(() => {
+          inFlight -= 1;
+          scheduleScan();
+        });
+    }
   }
 
   function startObserver() {
@@ -178,6 +246,14 @@
       }
     });
     observer.observe(root.document.documentElement, { childList: true, subtree: true });
+    if (!scrollListening) {
+      // Scrolling back to posts that are already rendered causes no DOM mutation.
+      root.addEventListener("scroll", () => {
+        scroll.update(root.scrollY, root.innerHeight);
+        scheduleScan();
+      }, { passive: true });
+      scrollListening = true;
+    }
     scheduleScan();
   }
 
@@ -186,6 +262,7 @@
     generation += 1;
     postInputs = new WeakMap();
     diagnosticOutcomes = new WeakMap();
+    retries = new WeakMap();
     lastProcessingError = "";
     api.removeAllAnnotations();
     api.findPosts(root.document).forEach((article) => {
@@ -220,7 +297,7 @@
       if (
         next.enabled !== settings.enabled ||
         next.sensitivity !== settings.sensitivity ||
-        next.flagClickbait !== settings.flagClickbait
+        JSON.stringify(next.verdicts) !== JSON.stringify(settings.verdicts)
       ) {
         resetForSettings(next);
       } else {

@@ -12,13 +12,25 @@
   const MAX_ACCOUNTS = 300;
   const MAX_POSTS_PER_ACCOUNT = 30;
   // Settings from the removed repeated-account block suggestions.
-  const RETIRED_SETTINGS = ["showBlockSuggestions", "minimumObservedPosts", "minimumFlaggedPosts"];
+  const RETIRED_SETTINGS = ["showBlockSuggestions", "minimumObservedPosts", "minimumFlaggedPosts", "flagClickbait"];
+  const VERDICTS = Object.freeze(["slop", "clickbait", "bot", "scam"]);
 
   const DEFAULT_SETTINGS = Object.freeze({
     enabled: true,
     sensitivity: "balanced",
-    flagClickbait: true
+    verdicts: Object.freeze({ slop: true, clickbait: true, bot: true, scam: true })
   });
+
+  // Keep one verdict on: with none, the extension would pay for requests that can never flag.
+  function normalizeVerdicts(value, legacy) {
+    const source = value && typeof value === "object" ? value : {};
+    const verdicts = {};
+    VERDICTS.forEach((key) => { verdicts[key] = source[key] !== false; });
+    if (legacy?.flagClickbait === false && !(value && "clickbait" in value)) {
+      verdicts.clickbait = false;
+    }
+    return VERDICTS.some((key) => verdicts[key]) ? verdicts : { ...DEFAULT_SETTINGS.verdicts };
+  }
 
   let cachedState;
   let loadPromise;
@@ -50,7 +62,7 @@
     return {
       schemaVersion: 2,
       salt: randomSalt(),
-      settings: { ...DEFAULT_SETTINGS },
+      settings: { ...DEFAULT_SETTINGS, verdicts: { ...DEFAULT_SETTINGS.verdicts } },
       accounts: {}
     };
   }
@@ -61,6 +73,7 @@
       ...DEFAULT_SETTINGS,
       ...(candidate.settings && typeof candidate.settings === "object" ? candidate.settings : {})
     };
+    settings.verdicts = normalizeVerdicts(settings.verdicts, settings);
     RETIRED_SETTINGS.forEach((key) => delete settings[key]);
     if (Number(candidate.schemaVersion || 0) < 2 && settings.sensitivity === "conservative") {
       settings.sensitivity = "balanced";
@@ -187,8 +200,8 @@
     if (typeof patch.enabled === "boolean") {
       allowed.enabled = patch.enabled;
     }
-    if (typeof patch.flagClickbait === "boolean") {
-      allowed.flagClickbait = patch.flagClickbait;
+    if (patch.verdicts && typeof patch.verdicts === "object") {
+      allowed.verdicts = patch.verdicts;
     }
     if (["conservative", "balanced", "sensitive"].includes(patch.sensitivity)) {
       allowed.sensitivity = patch.sensitivity;
@@ -196,6 +209,7 @@
 
     return enqueueWrite((state) => {
       state.settings = { ...state.settings, ...allowed };
+      state.settings.verdicts = normalizeVerdicts(state.settings.verdicts);
       return clone(state.settings);
     });
   }
@@ -322,6 +336,7 @@
     DEFAULT_SETTINGS,
     DIAGNOSTICS_KEY,
     STORAGE_KEY,
+    VERDICTS,
     clearHistory,
     fingerprintPost,
     getDashboard,

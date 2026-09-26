@@ -16,8 +16,14 @@ test("defaults no longer include the removed block-suggestion settings", () => {
   assert.equal("showBlockSuggestions" in DEFAULT_SETTINGS, false);
 });
 
-test("clickbait flags are on by default", () => {
-  assert.equal(DEFAULT_SETTINGS.flagClickbait, true);
+test("every verdict is on by default, at least one stays on, and the old clickbait flag migrates", async () => {
+  const { updateSettings, getSettings } = require("../src/storage.js");
+  assert.deepEqual({ ...DEFAULT_SETTINGS.verdicts }, { slop: true, clickbait: true, bot: true, scam: true });
+  await updateSettings({ verdicts: { slop: false, clickbait: true, bot: false, scam: false } });
+  assert.deepEqual((await getSettings()).verdicts, { slop: false, clickbait: true, bot: false, scam: false });
+  await updateSettings({ verdicts: { slop: false, clickbait: false, bot: false, scam: false } });
+  assert.deepEqual((await getSettings()).verdicts, { slop: true, clickbait: true, bot: true, scam: true });
+  assert.equal("flagClickbait" in (await getSettings()), false);
 });
 
 test("normalizes handles without accepting display decoration", () => {

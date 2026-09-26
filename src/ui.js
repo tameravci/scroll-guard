@@ -278,7 +278,7 @@
     const style = element("style", "", CARD_STYLES);
     const card = element("aside", "card");
     card.setAttribute("aria-label", "Slop Spotter finding");
-    const verdictLabel = { scam: "Possible scam", bot: "Likely bot spam", clickbait: "Likely clickbait", slop: "Likely slop" }[verdict];
+    const verdictLabel = { scam: "Possible scam", bot: "Likely bot spam", clickbait: "Likely clickbait", slop: "Likely AI slop" }[verdict];
     const percent = Math.round(payload.detection.probability * 100);
     const summary = element("button", "summary");
     summary.type = "button";
@@ -304,7 +304,7 @@
         scam: "This is a model assessment, not verification of the account or linked website.",
         bot: "This is a model assessment. Jev cannot confirm that a bot runs this account.",
         clickbait: "This is a model assessment of the framing. Jev has not fact-checked the claim.",
-        slop: "Jev's writing-quality assessment is not proof that AI wrote this post."
+        slop: "Based on AI-writing patterns in the text. This is not proof of who wrote the post."
       }[verdict]
     );
     details.append(list, disclaimer);

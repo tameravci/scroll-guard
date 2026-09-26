@@ -4,55 +4,48 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Slop Spotter for X</title>
+    <link rel="stylesheet" href="../src/panel.css">
     <link rel="stylesheet" href="popup.css">
   </head>
   <body>
     <main>
-      <header>
-        <img src="../icons/icon-48.png" width="36" height="36" alt="">
-        <div>
+      <header class="top">
+        <img src="../icons/icon-48.png" width="28" height="28" alt="">
+        <div class="title">
           <h1>Slop Spotter</h1>
-          <p id="tagline">Writing assessed by TypeSafe Jev.</p>
+          <p>Powered by TypeSafe Jev</p>
         </div>
+        <label class="switch" title="Check posts on X">
+          <input id="enabled" type="checkbox" role="switch" aria-label="Check posts on X">
+          <span class="track"></span>
+        </label>
       </header>
 
-      <section class="settings" aria-label="Quick settings">
-        <label class="toggle-row">
-          <span>
-            <strong>Highlight slop and possible scams</strong>
-            <small>Sends post text to TypeSafe for analysis.</small>
-          </span>
-          <input id="enabled" type="checkbox">
-        </label>
-
-        <label class="field-row">
-          <span>
-            <strong>Sensitivity</strong>
-            <small>Balanced is the recommended default.</small>
-          </span>
-          <select id="sensitivity">
-            <option value="conservative">Conservative</option>
-            <option value="balanced">Balanced</option>
-            <option value="sensitive">Sensitive</option>
-          </select>
-        </label>
-
-        <label class="toggle-row">
-          <span>
-            <strong>Flag clickbait</strong>
-            <small>Sensational framing built for clicks.</small>
-          </span>
-          <input id="flagClickbait" type="checkbox">
-        </label>
+      <section id="setup" class="setup" hidden>
+        <h2>Finish setup</h2>
+        <p>Add your Jev API key to start checking posts on X.</p>
+        <form id="keyForm" class="key-form">
+          <input id="jevApiKey" class="text-input" type="password" autocomplete="off" placeholder="Paste API key" aria-label="Jev API key">
+          <button class="button primary" type="submit">Save</button>
+        </form>
+        <a class="console-link" href="https://console.typesafe.ai/keys" target="_blank" rel="noopener">Get a key from the Jev console ↗</a>
+        <p id="keyStatus" class="status" role="status"></p>
       </section>
 
-      <p id="stats" class="stats">Loading local history…</p>
-      <p id="diagnostics" class="diagnostics">Checking the latest X scan…</p>
+      <div id="panel" class="panel" hidden></div>
+
+      <p id="diagnostics" class="warning" hidden></p>
+
+      <footer>
+        <p id="stats" class="stats"></p>
+        <button id="options" class="button link" type="button">Privacy &amp; data</button>
+      </footer>
       <p id="status" class="status" role="status" aria-live="polite"></p>
-      <button id="options" class="secondary" type="button">Settings, privacy & data</button>
     </main>
 
     <script src="../src/storage.js"></script>
+    <script src="../src/key-store.js"></script>
+    <script src="../src/panel.js"></script>
     <script src="popup.js"></script>
   </body>
 </html>

@@ -51,6 +51,8 @@ const javascriptFiles = [
   "src/detector.js",
   "src/jev.js",
   "src/key-store.js",
+  "src/panel.js",
+  "src/scheduler.js",
   "src/jev-content.js",
   "src/background.js",
   "src/storage.js",
@@ -62,6 +64,7 @@ const javascriptFiles = [
   "tests/detector.test.js",
   "tests/jev.test.js",
   "tests/run-tests.js",
+  "tests/scheduler.test.js",
   "tests/storage.test.js",
   "tests/x-adapter.test.js"
 ];

@@ -22,6 +22,7 @@
         "src/storage.js",
         "src/x-adapter.js",
         "src/ui.js",
+        "src/scheduler.js",
         "src/content.js"
       ],
       "run_at": "document_idle"
