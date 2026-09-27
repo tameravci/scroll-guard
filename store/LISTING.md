@@ -68,7 +68,7 @@ Scroll Guard is not affiliated with X Corp. or TypeSafe.
 | Screenshot 3 | `store/screenshot-3-popup.png` |
 | Screenshot 4 | `store/screenshot-4-setup.png` |
 | Small promo tile (440×280) | `store/promo-small-440x280.png` |
-| Promo video (YouTube URL) | Upload `store/promo.mp4` (15 s, 1080p, no audio) to YouTube, unlisted is fine, and paste the link. Rebuild it with `node scripts/store-reel.mjs`. |
+| Promo video (YouTube URL) | Upload `store/promo.mp4` (15 s, 1080p60, original score synthesized in `scripts/store-music.mjs`, no licensed audio) to YouTube, unlisted is fine, and paste the link. Rebuild it with `node scripts/store-reel.mjs`. |
 
 **Official URL:** leave empty. It needs a verified domain.
 

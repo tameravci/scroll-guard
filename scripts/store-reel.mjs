@@ -1,9 +1,11 @@
 // Renders the 15-second promo reel frame by frame: an HTML scene with a seek(t)
 // timeline, captured with Playwright at 60 fps and encoded with ffmpeg.
-// Output: store/promo.mp4 (1920x1080, H.264).
+// Output: store/promo.mp4 (1920x1080, H.264, with the original score from
+// store-music.mjs). Cues sit on the score's 160 BPM grid, anchored at 2.6 s.
 import { mkdtemp, rm } from "node:fs/promises";
 import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
+import { renderMusic } from "./store-music.mjs";
 import { join, resolve } from "node:path";
 
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || "playwright");
@@ -236,7 +238,7 @@ window.seek = (t, frameIndex) => {
     frameShape.style.borderWidth = stroke + "px";
     frameShape.style.background = "rgba(245,166,35," + (0.09 * (1 - p)).toFixed(3) + ")";
   }
-  const tileIn = prog(t, 7.15, 7.8);
+  const tileIn = prog(t, 7.2, 7.85);
   tile.style.opacity = outCubic(clamp(tileIn * 2));
   const tileScale = tileIn > 0 ? outBack(tileIn, 1.6) : 0.5;
   const T = target.tile;
@@ -248,7 +250,7 @@ window.seek = (t, frameIndex) => {
   const glowEnd = prog(t, 13.8, 15);
   glow.style.opacity = (Math.sin(Math.PI * clamp(glowP)) * 0.9 + (t > 8.6 ? 0.35 + 0.25 * Math.sin(Math.PI * glowEnd) : 0)).toFixed(3);
   glow.style.transform = "translate(" + (icx - 700) + "px," + (icy - 700) + "px)";
-  [[7.75, 0], [12.95, 1]].forEach(([at, i]) => {
+  [[7.85, 0], [13.1, 1]].forEach(([at, i]) => {
     const p = prog(t, at, at + 1.0);
     const radius = lerp(120, 900, outCubic(p));
     rings[i].style.opacity = p > 0 && p < 1 ? (0.55 * (1 - p)).toFixed(3) : 0;
@@ -259,7 +261,7 @@ window.seek = (t, frameIndex) => {
   // ----- wordmark, tagline, proof chips -----
   wordmark.style.transform = "translateY(" + 470 + "px)";
   letters.forEach((span, i) => {
-    const p = outExpo(prog(t, 8.85 + i * 0.035, 8.85 + i * 0.035 + 0.6));
+    const p = outExpo(prog(t, 8.975 + i * 0.035, 8.975 + i * 0.035 + 0.6));
     span.style.opacity = p;
     span.style.transform = "translateY(" + ((1 - p) * 90).toFixed(2) + "px)";
     span.style.filter = p < 1 ? "blur(" + ((1 - p) * 16).toFixed(2) + "px)" : "none";
@@ -270,7 +272,7 @@ window.seek = (t, frameIndex) => {
   tagline.style.transform = "translateY(" + ((1 - tagIn) * 30 - tagOut * 24) + "px)";
   chipRow.style.top = "700px";
   chips.forEach((chip, i) => {
-    const at = 11.7 + i * 0.36;
+    const at = 11.6 + i * 0.375;
     const p = prog(t, at, at + 0.5);
     chip.style.opacity = clamp(p * 5);
     chip.style.transform = "scale(" + (p > 0 ? lerp(1.55, 1, outBack(p, 2.2)) : 1.55).toFixed(4) + ")";
@@ -309,7 +311,10 @@ try {
   await browser.close();
 }
 const output = process.env.REEL_OUT || join(project, "store", "promo.mp4");
-execFileSync("ffmpeg", ["-y", "-loglevel", "error", "-framerate", String(FPS), "-i", join(frames, "f%04d.jpg"),
-  "-c:v", "libx264", "-preset", "slow", "-crf", "16", "-pix_fmt", "yuv420p", "-movflags", "+faststart", output]);
+const score = join(frames, "score.wav");
+renderMusic(score, DURATION);
+execFileSync("ffmpeg", ["-y", "-loglevel", "error", "-framerate", String(FPS), "-i", join(frames, "f%04d.jpg"), "-i", score,
+  "-c:v", "libx264", "-preset", "slow", "-crf", "16", "-pix_fmt", "yuv420p",
+  "-c:a", "aac", "-b:a", "256k", "-shortest", "-movflags", "+faststart", output]);
 await rm(frames, { recursive: true, force: true });
 console.log(`Promo reel written to ${output}.`);
