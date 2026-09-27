@@ -1,95 +1,86 @@
+/* minmax(0, 1fr) lets grid children shrink below their content width. */
 main {
   display: grid;
-  gap: 20px;
+  gap: 0;
   grid-template-columns: minmax(0, 1fr);
   margin: 0 auto;
-  max-width: 560px;
-  padding: 48px 16px 64px;
+  max-width: 480px;
+  padding: 56px 20px 72px;
 }
 
 .brand {
   align-items: center;
   display: flex;
-  gap: 14px;
-  margin-bottom: 8px;
+  gap: 12px;
+  padding-bottom: 28px;
 }
-.brand img { border-radius: 10px; flex: none; }
+.brand img { border-radius: 8px; flex: none; }
 h1 {
-  font-size: 22px;
-  font-weight: 650;
-  letter-spacing: -0.02em;
-  line-height: 1.2;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  line-height: 1.25;
   margin: 0;
 }
-.brand p { color: var(--muted); margin: 2px 0 0; }
+.brand p { color: var(--muted); margin: 1px 0 0; }
 
+/* Steps read as sections of one document, divided by hairlines. */
 .card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 14px;
+  border-top: 1px solid var(--line);
   display: grid;
   gap: 12px;
   grid-template-columns: minmax(0, 1fr);
-  padding: 20px;
+  padding: 22px 0 26px;
 }
 .card[aria-disabled="true"] {
-  opacity: 0.45;
+  opacity: 0.4;
   pointer-events: none;
 }
 
-.step { align-items: center; display: flex; gap: 10px; }
+.step { align-items: baseline; display: flex; gap: 10px; }
 .step-no {
-  align-items: center;
-  background: var(--raised);
-  border: 1px solid var(--border);
-  border-radius: 50%;
-  display: inline-flex;
-  flex: none;
-  font-size: 12px;
-  font-weight: 650;
-  height: 24px;
-  justify-content: center;
-  width: 24px;
+  color: var(--faint);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  width: 12px;
 }
-#keyCard.done .step-no {
-  background: var(--accent);
-  border-color: transparent;
-  color: var(--accent-ink);
-}
+#keyCard.done .step-no::before { content: "✓"; }
+#keyCard.done .step-no { color: var(--text); font-size: 0; }
+#keyCard.done .step-no::before { font-size: 13px; }
 h2 {
-  font-size: 15px;
-  font-weight: 650;
+  font-size: 14px;
+  font-weight: 600;
   letter-spacing: -0.01em;
   margin: 0;
 }
+.card > :not(.step) { margin-left: 22px; }
 .lead, .note { color: var(--muted); margin: 0; }
 .note { font-size: 12px; }
-.console-link { font-size: 13px; justify-self: start; }
+.console-link { color: var(--muted); font-size: 12px; justify-self: start; }
 .key-actions { display: flex; gap: 8px; }
 #keyStatus:empty { display: none; }
+#panel { display: grid; gap: 18px; }
 
 .privacy {
+  border-top: 1px solid var(--line);
   display: grid;
   gap: 10px;
-  padding: 4px 4px 0;
+  padding-top: 22px;
 }
 .privacy ul {
   color: var(--muted);
   display: grid;
-  gap: 4px;
+  gap: 3px;
   margin: 0;
-  padding-left: 18px;
+  padding-left: 16px;
 }
 .stats {
   color: var(--muted);
-  font-size: 13px;
+  font-size: 12px;
   font-variant-numeric: tabular-nums;
   margin: 0;
 }
-.row { align-items: center; display: flex; gap: 16px; }
-.row a { color: var(--muted); font-size: 13px; }
-
-@media (max-width: 480px) {
-  main { padding-top: 28px; }
-  .chips { grid-template-columns: 1fr; }
-}
+.row-actions { align-items: center; display: flex; gap: 16px; margin-top: 4px; }
+.row-actions a { color: var(--muted); font-size: 12px; }
+main > .status { margin-top: 16px; }

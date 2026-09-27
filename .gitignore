@@ -2,3 +2,6 @@
 .env.*
 !.env.example
 node_modules/
+
+# Release builds; publish them through GitHub Releases, not git.
+artifacts/

@@ -87,8 +87,27 @@ async function decide(message) {
   return JevDetector.interpret(result, message.sensitivity, { verdicts: message.verdicts });
 }
 
+// The setup page and the popup test a key here before they save it.
+async function verifyKey(key) {
+  if (typeof key !== "string" || !key.trim() || key.length > 500) return { valid: false, reachable: true };
+  try {
+    const { ok, status } = await JevDetector.verifyKey(key.trim());
+    if (ok) return { valid: true, reachable: true };
+    if (status === 401 || status === 403) return { valid: false, reachable: true };
+    return { valid: false, reachable: false };
+  } catch {
+    return { valid: false, reachable: false };
+  }
+}
+
 chrome.runtime.onMessage.addListener((message, sender, respond) => {
   if (sender.id !== chrome.runtime.id) return;
+  if (message?.type === "jev-verify-key") {
+    // Only the extension's own pages may test keys; content scripts never see one.
+    if (!String(sender.url || "").startsWith(`chrome-extension://${chrome.runtime.id}/`)) return;
+    verifyKey(message.key).then(respond);
+    return true;
+  }
   if (message?.type !== "jev-evaluate") return;
   if (!/^https:\/\/(?:x|twitter)\.com\//u.test(sender.url || "")) return;
   if (typeof message.text !== "string" || !message.text.trim() || message.text.length > 20000) {

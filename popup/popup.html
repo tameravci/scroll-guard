@@ -10,26 +10,30 @@
   <body>
     <main>
       <header class="top">
-        <img src="../icons/icon-48.png" width="28" height="28" alt="">
-        <div class="title">
-          <h1>Slop Spotter</h1>
-          <p>Powered by TypeSafe Jev</p>
-        </div>
+        <img src="../icons/icon-32.png" width="18" height="18" alt="">
+        <h1>Slop Spotter</h1>
         <label class="switch" title="Check posts on X">
           <input id="enabled" type="checkbox" role="switch" aria-label="Check posts on X">
           <span class="track"></span>
         </label>
       </header>
 
+      <section id="summary" class="summary" aria-live="polite" hidden>
+        <p class="figure"><span id="figure"></span><span id="figureUnit" class="unit"></span></p>
+        <p id="summaryLine" class="summary-line"></p>
+      </section>
+
       <section id="setup" class="setup" hidden>
-        <h2>Finish setup</h2>
-        <p>Add your Jev API key to start checking posts on X.</p>
+        <p class="setup-title">Connect Jev to start</p>
+        <p class="setup-copy">Paste your API key. Posts on X are checked as you read.</p>
         <form id="keyForm" class="key-form">
-          <input id="jevApiKey" class="text-input" type="password" autocomplete="off" placeholder="Paste API key" aria-label="Jev API key">
+          <input id="jevApiKey" class="text-input" type="password" autocomplete="off" placeholder="API key" aria-label="Jev API key">
           <button class="button primary" type="submit">Save</button>
         </form>
-        <a class="console-link" href="https://console.typesafe.ai/keys" target="_blank" rel="noopener">Get a key from the Jev console ↗</a>
-        <p id="keyStatus" class="status" role="status"></p>
+        <p class="setup-foot">
+          <a href="https://console.typesafe.ai/keys" target="_blank" rel="noopener">Get a key ↗</a>
+          <span id="keyStatus" class="status" role="status"></span>
+        </p>
       </section>
 
       <div id="panel" class="panel" hidden></div>
@@ -37,10 +41,9 @@
       <p id="diagnostics" class="warning" hidden></p>
 
       <footer>
-        <p id="stats" class="stats"></p>
         <button id="options" class="button link" type="button">Privacy &amp; data</button>
+        <span id="status" class="status" role="status">TypeSafe Jev</span>
       </footer>
-      <p id="status" class="status" role="status" aria-live="polite"></p>
     </main>
 
     <script src="../src/storage.js"></script>

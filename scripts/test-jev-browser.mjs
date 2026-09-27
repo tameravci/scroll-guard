@@ -27,6 +27,7 @@ a { color:inherit; text-decoration:none; } .meta,.actions { color:#687684; font-
 @media(prefers-color-scheme:dark) { body { background:#000; color:#e7e9ea; } main,h1,article { border-color:#2f3336; } .meta,.actions { color:#8899a6; } }
 </style></head><body><main><h1>For you</h1>${samples.map((text, i) => `<article data-testid="tweet"><div class="author"><span class="avatar">${["JL","TS","CG"][i]}</span><div><strong>${["Jamie Lee","Tomorrow Starts","Crypto Giveaway"][i]}</strong><br><a class="meta" href="/TestAccount/status/${100 + i}">@TestAccount · <time>2h</time></a></div></div><div class="post" data-testid="tweetText">${text}</div><div class="actions"><span>♡ 24</span><span>↻ 8</span><span>↗ Share</span><span>⋯</span></div></article>`).join("")}</main></body></html>`;
 let calls = 0;
+let keyChecks = 0;
 // Requests for the long-feed priority test, in the order the worker sent them.
 const longRequests = [];
 const longFixture = `<html><head><meta charset="utf-8"><style>
@@ -47,6 +48,15 @@ try {
   if (!live) {
     await context.route("https://api.typesafe.ai/**", async (route) => {
       const request = route.request().postDataJSON();
+      // Key checks from the setup page: accept only the test key.
+      if (request.questions?.key_check) {
+        keyChecks += 1;
+        const good = route.request().headers().authorization === `Bearer ${key}`;
+        await route.fulfill(good
+          ? { contentType: "application/json", body: JSON.stringify({ model: "jev-browser-test", answers: { key_check: { type: "noul", probability: 1 } } }) }
+          : { status: 401, contentType: "application/json", body: "{}" });
+        return;
+      }
       const longMatch = /^Long feed post number (\d+)/u.exec(request.state.post);
       if (longMatch) longRequests.push(Number(longMatch[1]));
       else calls += 1;
@@ -74,10 +84,20 @@ try {
   await feed.waitForFunction(() => document.querySelectorAll("[data-slop-spotter-processed]").length === 3);
   assert.equal(await feed.locator("[data-slop-spotter-host]").count(), 0);
   assert.equal(calls, 0);
+  if (!live) {
+    // A key Jev rejects is not saved.
+    await options.locator("#jevApiKey").fill("wrong-key");
+    await options.locator("#saveKey").click();
+    await options.locator("#keyStatus").filter({ hasText: "Jev rejected this key" }).waitFor();
+    assert.equal(await options.locator("#jevApiKey").inputValue(), "wrong-key");
+    assert.equal(await options.evaluate(() => JevKeyStore.get()), "");
+    assert.equal(keyChecks, 1);
+  }
   await options.locator("#jevApiKey").fill(key);
   await options.locator("#saveKey").click();
   await options.locator("#keyStatus").filter({ hasText: /^Key saved/ }).waitFor();
   assert.equal(await options.locator("#jevApiKey").inputValue(), "");
+  if (!live) assert.equal(keyChecks, 2, "Saving must test the key with Jev first");
   if (!live) {
     await options.locator(".segment", { hasText: "Fewer" }).click();
     await options.waitForFunction(async () => {
@@ -256,6 +276,24 @@ try {
     const popup = await context.newPage();
     await popup.goto(`chrome-extension://${extensionId}/popup/popup.html`);
     await popup.locator("#diagnostics").filter({ hasText: "Scanner error" }).waitFor();
+    // Unchecking the last verdict type pauses the extension; checking one resumes it;
+    // the switch brings every type back.
+    const settingsNow = () => popup.evaluate(async () => (await chrome.storage.local.get("slopSpotterStateV1")).slopSpotterStateV1.settings);
+    for (const name of ["AI slop", "Clickbait", "Bot spam", "Scam"]) {
+      await popup.locator(".row", { hasText: name }).click();
+    }
+    await popup.waitForFunction(() => !document.querySelector("#enabled").checked);
+    assert.equal((await settingsNow()).enabled, false);
+    await popup.locator(".row", { hasText: "Scam" }).click();
+    await popup.waitForFunction(() => document.querySelector("#enabled").checked);
+    assert.deepEqual((await settingsNow()).verdicts, { slop: false, clickbait: false, bot: false, scam: true });
+    await popup.locator(".row", { hasText: "Scam" }).click();
+    await popup.waitForFunction(() => !document.querySelector("#enabled").checked);
+    await popup.locator("label.switch").click();
+    await popup.waitForFunction(() => [...document.querySelectorAll(".row .check")].every((box) => box.checked));
+    const restored = await settingsNow();
+    assert.equal(restored.enabled, true);
+    assert.deepEqual(restored.verdicts, { slop: true, clickbait: true, bot: true, scam: true });
     // The key must survive a restart. Chrome clears session storage then, as it
     // does on an extension reload.
     await context.close();

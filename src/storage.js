@@ -14,6 +14,7 @@
   // Settings from the removed repeated-account block suggestions.
   const RETIRED_SETTINGS = ["showBlockSuggestions", "minimumObservedPosts", "minimumFlaggedPosts", "flagClickbait"];
   const VERDICTS = Object.freeze(["slop", "clickbait", "bot", "scam"]);
+  const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
   const DEFAULT_SETTINGS = Object.freeze({
     enabled: true,
@@ -21,7 +22,6 @@
     verdicts: Object.freeze({ slop: true, clickbait: true, bot: true, scam: true })
   });
 
-  // Keep one verdict on: with none, the extension would pay for requests that can never flag.
   function normalizeVerdicts(value, legacy) {
     const source = value && typeof value === "object" ? value : {};
     const verdicts = {};
@@ -29,7 +29,14 @@
     if (legacy?.flagClickbait === false && !(value && "clickbait" in value)) {
       verdicts.clickbait = false;
     }
-    return VERDICTS.some((key) => verdicts[key]) ? verdicts : { ...DEFAULT_SETTINGS.verdicts };
+    return verdicts;
+  }
+
+  // With no verdict type on, every request would be paid for and could never flag,
+  // so turning off the last type also turns the extension off.
+  function enforceActive(settings) {
+    if (!VERDICTS.some((key) => settings.verdicts[key])) settings.enabled = false;
+    return settings;
   }
 
   let cachedState;
@@ -74,6 +81,7 @@
       ...(candidate.settings && typeof candidate.settings === "object" ? candidate.settings : {})
     };
     settings.verdicts = normalizeVerdicts(settings.verdicts, settings);
+    enforceActive(settings);
     RETIRED_SETTINGS.forEach((key) => delete settings[key]);
     if (Number(candidate.schemaVersion || 0) < 2 && settings.sensitivity === "conservative") {
       settings.sensitivity = "balanced";
@@ -210,6 +218,11 @@
     return enqueueWrite((state) => {
       state.settings = { ...state.settings, ...allowed };
       state.settings.verdicts = normalizeVerdicts(state.settings.verdicts);
+      // Switching on with every type off would flag nothing, so bring every type back.
+      if (allowed.enabled === true && !VERDICTS.some((key) => state.settings.verdicts[key])) {
+        state.settings.verdicts = { ...DEFAULT_SETTINGS.verdicts };
+      }
+      enforceActive(state.settings);
       return clone(state.settings);
     });
   }
@@ -259,10 +272,30 @@
     });
   }
 
-  async function getDashboard() {
+  // Maps a stored finding family to the verdict type the user can switch on or off.
+  function verdictOf(family) {
+    if (family === "jev-scam") return "scam";
+    if (family === "jev-bot") return "bot";
+    if (family === "jev-clickbait") return "clickbait";
+    return "slop";
+  }
+
+  async function getDashboard(now = Date.now()) {
     const state = await init();
     const accounts = Object.values(state.accounts);
+    const since = now - ONE_DAY_MS;
+    const recentPosts = accounts.flatMap((account) => account.posts || [])
+      .filter((post) => Number(post.at || 0) >= since);
+    const byVerdict = { slop: 0, clickbait: 0, bot: 0, scam: 0 };
+    recentPosts.filter((post) => post.flagged === true).forEach((post) => {
+      byVerdict[verdictOf((post.families || [])[0])] += 1;
+    });
     return {
+      recent: {
+        checked: recentPosts.length,
+        flagged: recentPosts.filter((post) => post.flagged === true).length,
+        byVerdict
+      },
       observedAccounts: accounts.length,
       observedPosts: accounts.reduce((total, account) => total + (account.posts?.length || 0), 0),
       flaggedPosts: accounts.reduce(

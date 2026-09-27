@@ -40,7 +40,7 @@
     await root.chrome?.storage?.session?.set({ jevApiKeyChangedAt: Date.now() });
   }
 
-  return {
+  const store = {
     async get() {
       return (await run("readonly", (store) => store.get(KEY_ID))) || "";
     },
@@ -51,6 +51,17 @@
     async remove() {
       await run("readwrite", (store) => store.delete(KEY_ID));
       await announce();
+    },
+    // Extension pages only: the worker tests the key with a small Jev call first.
+    // A rejected key is not saved. If Jev cannot be reached, the key is saved
+    // anyway so an outage does not block setup, and the caller warns the user.
+    async verifyAndSave(key) {
+      const trimmed = String(key || "").trim();
+      const result = await root.chrome.runtime.sendMessage({ type: "jev-verify-key", key: trimmed });
+      if (!result?.valid && result?.reachable !== false) return { saved: false };
+      await store.set(trimmed);
+      return { saved: true, verified: result?.valid === true };
     }
   };
+  return store;
 });

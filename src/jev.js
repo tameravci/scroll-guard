@@ -127,5 +127,23 @@
       return result;
     } finally { clearTimeout(timeout); }
   }
-  return { requestFor, interpret, evaluate };
+  // A minimal request to test a key before saving it. The rubric is not sent, so the
+  // check costs only a few dozen tokens.
+  async function verifyKey(apiKey, fetcher = fetch) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    try {
+      const response = await fetcher(ENDPOINT, {
+        method: "POST", redirect: "error", signal: controller.signal,
+        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "jev-latest",
+          state: "Key check.",
+          questions: { key_check: { type: "noul", instructions: "Is this text a key check?" } }
+        })
+      });
+      return { ok: response.ok, status: response.status };
+    } finally { clearTimeout(timeout); }
+  }
+  return { requestFor, interpret, evaluate, verifyKey };
 });

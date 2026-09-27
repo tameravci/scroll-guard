@@ -16,14 +16,19 @@ test("defaults no longer include the removed block-suggestion settings", () => {
   assert.equal("showBlockSuggestions" in DEFAULT_SETTINGS, false);
 });
 
-test("every verdict is on by default, at least one stays on, and the old clickbait flag migrates", async () => {
+test("turning off every verdict type pauses the extension, and switching on restores them", async () => {
   const { updateSettings, getSettings } = require("../src/storage.js");
   assert.deepEqual({ ...DEFAULT_SETTINGS.verdicts }, { slop: true, clickbait: true, bot: true, scam: true });
-  await updateSettings({ verdicts: { slop: false, clickbait: true, bot: false, scam: false } });
+  await updateSettings({ enabled: true, verdicts: { slop: false, clickbait: true, bot: false, scam: false } });
   assert.deepEqual((await getSettings()).verdicts, { slop: false, clickbait: true, bot: false, scam: false });
-  await updateSettings({ verdicts: { slop: false, clickbait: false, bot: false, scam: false } });
-  assert.deepEqual((await getSettings()).verdicts, { slop: true, clickbait: true, bot: true, scam: true });
-  assert.equal("flagClickbait" in (await getSettings()), false);
+  assert.equal((await getSettings()).enabled, true);
+  const off = await updateSettings({ verdicts: { slop: false, clickbait: false, bot: false, scam: false } });
+  assert.equal(off.enabled, false);
+  assert.deepEqual(off.verdicts, { slop: false, clickbait: false, bot: false, scam: false });
+  const on = await updateSettings({ enabled: true });
+  assert.equal(on.enabled, true);
+  assert.deepEqual(on.verdicts, { slop: true, clickbait: true, bot: true, scam: true });
+  assert.equal("flagClickbait" in on, false);
 });
 
 test("normalizes handles without accepting display decoration", () => {
@@ -95,4 +100,17 @@ test("publishes aggregate scanner diagnostics without post text", async () => {
   assert.equal(diagnostics.articleCount, 8);
   assert.equal(diagnostics.highlightedCount, 2);
   assert.equal("postText" in diagnostics, false);
+});
+
+test("the dashboard counts the last 24 hours by verdict type", async () => {
+  await clearHistory();
+  const now = Date.now();
+  await recordObservation({ handle: "a", fingerprint: "old", flagged: true, families: ["jev-scam"], at: now - 2 * 86400000 });
+  await recordObservation({ handle: "a", fingerprint: "s1", flagged: true, families: ["jev-contrast"], at: now - 1000 });
+  await recordObservation({ handle: "b", fingerprint: "c1", flagged: true, families: ["jev-clickbait"], at: now - 1000 });
+  await recordObservation({ handle: "b", fingerprint: "ok", flagged: false, families: [], at: now - 1000 });
+  const { recent } = await getDashboard(now);
+  assert.equal(recent.checked, 3);
+  assert.equal(recent.flagged, 2);
+  assert.deepEqual(recent.byVerdict, { slop: 1, clickbait: 1, bot: 0, scam: 0 });
 });

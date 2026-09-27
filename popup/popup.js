@@ -6,37 +6,49 @@
   const enabled = $("#enabled");
   const setup = $("#setup");
   const panel = $("#panel");
-  const stats = $("#stats");
+  const summary = $("#summary");
   const diagnostics = $("#diagnostics");
   const status = $("#status");
+  const RESTING = status.textContent;
   let statusTimer;
   let hasKey = false;
+  const refreshTail = globalThis.SlopSpotterPanel.attachKeyTail($("#jevApiKey"));
 
+  // Confirmations replace the footer credit briefly, so nothing shifts.
   function flash(message) {
     status.textContent = message;
+    status.classList.add("flash");
     clearTimeout(statusTimer);
-    statusTimer = setTimeout(() => { status.textContent = ""; }, 2500);
+    statusTimer = setTimeout(() => {
+      status.textContent = RESTING;
+      status.classList.remove("flash");
+    }, 2200);
   }
 
-  // Show only problems the user can act on. Routine scan counts go in the footer.
+  // Show only problems the user can act on.
   function showDiagnostics(result) {
     const problem = result?.errorCount > 0 ? `Scanner error: ${result.lastError || "unknown failure"}` : "";
     diagnostics.textContent = problem;
     diagnostics.hidden = !problem;
   }
 
-  async function showStats() {
+  async function showSummary(dashboard) {
     const settings = await api.getSettings();
-    const dashboard = await api.getDashboard();
+    const { checked, flagged } = dashboard.recent;
     document.body.classList.toggle("paused", !settings.enabled);
-    if (!hasKey) {
-      stats.textContent = "Needs an API key";
-    } else if (!settings.enabled) {
-      stats.textContent = "Paused";
-    } else if (dashboard.observedPosts === 0) {
-      stats.textContent = "Open x.com to start";
+    summary.hidden = !hasKey;
+    if (!settings.enabled) {
+      $("#figure").textContent = "Paused";
+      $("#figureUnit").textContent = "";
+      $("#summaryLine").textContent = "Posts on X are not being checked.";
+    } else if (checked === 0) {
+      $("#figure").textContent = "0";
+      $("#figureUnit").textContent = "flagged";
+      $("#summaryLine").textContent = "Nothing checked in the last 24 hours yet.";
     } else {
-      stats.textContent = `${dashboard.observedPosts} checked · ${dashboard.flaggedPosts} flagged`;
+      $("#figure").textContent = String(flagged);
+      $("#figureUnit").textContent = "flagged";
+      $("#summaryLine").textContent = `of ${checked} checked in the last 24 hours`;
     }
   }
 
@@ -55,11 +67,27 @@
       $("#keyStatus").textContent = "Paste a key first.";
       return;
     }
-    await JevKeyStore.set(key);
-    input.value = "";
-    await showKeyState();
-    await showStats();
-    flash("Key saved. Reload X to start.");
+    const button = $("#keyForm button");
+    const keyStatus = $("#keyStatus");
+    button.disabled = true;
+    button.textContent = "Checking…";
+    keyStatus.textContent = "";
+    try {
+      const result = await JevKeyStore.verifyAndSave(key);
+      if (!result.saved) {
+        keyStatus.textContent = "Jev rejected this key.";
+        input.select();
+        return;
+      }
+      input.value = "";
+      refreshTail();
+      await showKeyState();
+      await showSummary(await api.getDashboard());
+      flash(result.verified ? "Key works · reload X" : "Saved · Jev unreachable");
+    } finally {
+      button.disabled = false;
+      button.textContent = "Save";
+    }
   });
 
   // Jev finishes asynchronously; keep an open popup in sync.
@@ -71,19 +99,26 @@
 
   await api.init();
   const settings = await api.getSettings();
+  const dashboard = await api.getDashboard();
   enabled.checked = settings.enabled;
-  enabled.addEventListener("change", async () => {
-    await api.updateSettings({ enabled: enabled.checked });
-    await showStats();
-    flash(enabled.checked ? "On. Open X tabs update automatically." : "Paused.");
+  const controls = await globalThis.SlopSpotterPanel.mount(panel, api, {
+    counts: dashboard.recent.byVerdict,
+    onChange: async (next, change) => {
+      if (next) enabled.checked = next.enabled;
+      if (change.paused || change.resumed) await showSummary(await api.getDashboard());
+      flash(change.paused ? "Nothing to flag · paused" : change.resumed ? "On" : "Saved");
+    }
   });
-  await globalThis.SlopSpotterPanel.mount(panel, api, {
-    compact: true,
-    onSaved: () => flash("Saved. Open X tabs update automatically.")
+  enabled.addEventListener("change", async () => {
+    const next = await api.updateSettings({ enabled: enabled.checked });
+    // Switching on with every type off brings every type back.
+    controls.setVerdicts(next.verdicts);
+    await showSummary(await api.getDashboard());
+    flash(enabled.checked ? "On" : "Paused");
   });
   $("#options").addEventListener("click", () => chrome.runtime.openOptionsPage());
 
   await showKeyState();
-  await showStats();
+  await showSummary(dashboard);
   showDiagnostics(await api.getDiagnostics());
 })();

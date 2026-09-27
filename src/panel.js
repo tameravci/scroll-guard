@@ -1,7 +1,7 @@
 (function attachPanel(root) {
   "use strict";
 
-  // The four verdicts a user can flag. Colors match the frames drawn on X.
+  // The four verdict types a user can flag. Tick colors match the frames drawn on X.
   const VERDICTS = [
     { key: "slop", label: "AI slop", hint: "Reads as AI-written" },
     { key: "clickbait", label: "Clickbait", hint: "Framing built for clicks" },
@@ -21,56 +21,64 @@
     return element;
   }
 
+  // Renders the verdict list and the strictness control. options.counts adds a
+  // per-type count column; options.hints adds a one-line description per type.
   async function mount(container, api, options = {}) {
     const settings = await api.getSettings();
     const verdicts = { ...settings.verdicts };
-    const saved = () => options.onSaved?.();
-
-    const flags = node("fieldset", "field");
-    flags.append(node("legend", "", "Flag"));
-    const chips = node("div", options.compact ? "chips compact" : "chips");
+    const saved = () => options.onChange?.(null, {});
     const inputs = {};
 
-    // Keep at least one verdict on, so the last active chip is locked.
-    function lockLast() {
-      const active = VERDICTS.filter(({ key }) => verdicts[key]);
-      VERDICTS.forEach(({ key }) => {
-        const locked = active.length === 1 && verdicts[key];
-        inputs[key].disabled = locked;
-        inputs[key].closest(".chip").title = locked ? "Keep at least one type on" : "";
-      });
-    }
+    const section = node("section", "group");
+    section.setAttribute("aria-label", "Flag");
+    const list = node("div", "list");
 
     VERDICTS.forEach(({ key, label, hint }) => {
-      const chip = node("label", "chip");
-      chip.dataset.verdict = key;
-      const input = node("input");
+      const row = node("label", "row");
+      row.dataset.verdict = key;
+      const text = node("span", "row-text");
+      text.append(node("span", "row-label", label));
+      if (options.hints) text.append(node("span", "row-hint", hint));
+      const input = node("input", "check");
       input.type = "checkbox";
       input.checked = verdicts[key];
       input.name = "verdict";
       input.value = key;
       inputs[key] = input;
-      const text = node("span", "chip-text");
-      text.append(node("span", "chip-label", label));
-      if (!options.compact) text.append(node("span", "chip-hint", hint));
-      chip.append(input, node("span", "dot"), text);
+      row.append(node("span", "tick"), text);
+      if (options.counts) row.append(node("span", "row-count", String(options.counts[key] || 0)));
+      row.append(input);
       input.addEventListener("change", async () => {
+        const wasEmpty = VERDICTS.every((verdict) => !verdicts[verdict.key]);
         verdicts[key] = input.checked;
-        lockLast();
-        await api.updateSettings({ verdicts: { ...verdicts } });
-        saved();
+        const empty = VERDICTS.every((verdict) => !verdicts[verdict.key]);
+        const patch = { verdicts: { ...verdicts } };
+        // Unchecking the last type pauses the extension; checking one again resumes it.
+        if (empty) patch.enabled = false;
+        else if (wasEmpty) patch.enabled = true;
+        const next = await api.updateSettings(patch);
+        options.onChange?.(next, { paused: empty, resumed: wasEmpty && !empty });
       });
-      chips.append(chip);
+      list.append(row);
     });
-    flags.append(chips);
+    // The column label only earns its place when there is a count column to label.
+    if (options.counts) {
+      const head = node("div", "group-head");
+      head.append(node("span", "", "Flag"), node("span", "", "24 h"));
+      section.append(head);
+    }
+    section.append(list);
 
-    const strictness = node("fieldset", "field");
-    strictness.append(node("legend", "", "Strictness"));
+    const strictness = node("div", "setting");
+    const copy = node("div", "row-text");
+    const hint = node("span", "row-hint");
+    copy.append(node("span", "row-label", "Strictness"), hint);
     const segmented = node("div", "segmented");
-    const hint = node("p", "hint");
+    segmented.setAttribute("role", "radiogroup");
+    segmented.setAttribute("aria-label", "Strictness");
     const describe = (value) => {
       const level = LEVELS.find((item) => item.value === value) || LEVELS[1];
-      hint.textContent = `Flags a post when Jev is at least ${level.threshold}% sure.`;
+      hint.textContent = `Flags posts Jev rates ${level.threshold}% or higher`;
     };
     LEVELS.forEach(({ value, label }) => {
       const option = node("label", "segment");
@@ -88,11 +96,38 @@
       segmented.append(option);
     });
     describe(settings.sensitivity);
-    strictness.append(segmented, hint);
+    strictness.append(copy, segmented);
 
-    lockLast();
-    container.replaceChildren(flags, strictness);
+    container.replaceChildren(section, strictness);
+    return {
+      // Reflects a change made elsewhere, such as the popup switch reviving every type.
+      setVerdicts(next) {
+        VERDICTS.forEach(({ key }) => {
+          verdicts[key] = next[key] !== false;
+          inputs[key].checked = verdicts[key];
+        });
+      }
+    };
   }
 
-  root.SlopSpotterPanel = { VERDICTS, LEVELS, mount };
+  // Shows the last 4 characters of a masked key inside the field's right edge,
+  // so a pasted key can be recognized without revealing it.
+  function attachKeyTail(input) {
+    const field = node("span", "key-field");
+    const tail = node("span", "key-tail");
+    tail.setAttribute("aria-hidden", "true");
+    input.replaceWith(field);
+    field.append(input, tail);
+    const update = () => {
+      const value = input.value.trim();
+      tail.textContent = value.length >= 8 ? `…${value.slice(-4)}` : "";
+      field.classList.toggle("has-tail", Boolean(tail.textContent));
+    };
+    input.addEventListener("input", update);
+    input.form?.addEventListener("reset", () => setTimeout(update));
+    update();
+    return update;
+  }
+
+  root.SlopSpotterPanel = { VERDICTS, LEVELS, mount, attachKeyTail };
 })(globalThis);

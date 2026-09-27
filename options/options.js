@@ -4,6 +4,7 @@
   const api = globalThis.SlopSpotter;
   const $ = (selector) => document.querySelector(selector);
   const keyInput = $("#jevApiKey");
+  const refreshTail = globalThis.SlopSpotterPanel.attachKeyTail(keyInput);
   const keyForm = $("#keyForm");
   const keyActions = $("#keyActions");
   const keyStatus = $("#keyStatus");
@@ -36,9 +37,25 @@
       keyStatus.textContent = "Paste a key first.";
       return;
     }
-    await JevKeyStore.set(key);
-    keyInput.value = "";
-    await showKeyState();
+    const button = $("#saveKey");
+    button.disabled = true;
+    button.textContent = "Checking…";
+    keyStatus.textContent = "Testing the key with Jev…";
+    try {
+      const result = await JevKeyStore.verifyAndSave(key);
+      if (!result.saved) {
+        keyStatus.textContent = "Jev rejected this key. Check it and try again.";
+        keyInput.select();
+        return;
+      }
+      keyInput.value = "";
+      refreshTail();
+      await showKeyState();
+      if (!result.verified) keyStatus.textContent += " Jev could not be reached to test it.";
+    } finally {
+      button.disabled = false;
+      button.textContent = "Save key";
+    }
   });
   $("#replaceKey").addEventListener("click", () => {
     keyForm.hidden = false;
@@ -65,7 +82,12 @@
 
   await api.init();
   await globalThis.SlopSpotterPanel.mount($("#panel"), api, {
-    onSaved: () => flash("Saved. Open X tabs update automatically.")
+    hints: true,
+    onChange: (next, change) => flash(
+      change.paused ? "Every type is off, so Slop Spotter is paused. Check one to turn it back on."
+        : change.resumed ? "Slop Spotter is back on."
+          : "Saved. Open X tabs update automatically."
+    )
   });
   await showKeyState();
   await showStats();

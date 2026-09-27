@@ -1,9 +1,0 @@
-article[data-testid="tweet"].slop-spotter-flagged {
-  box-shadow: inset 3px 0 0 #ffb000 !important;
-}
-
-[data-slop-spotter-host] {
-  display: block;
-  position: relative;
-  z-index: 1;
-}

@@ -1,6 +1,8 @@
 # Third-party notices
 
-The deterministic writing rules in this project are adapted from:
+The AI-writing pattern names and example phrases in the Jev rubric (`src/jev.js`) are
+adapted from the following project. Jev makes every decision; the extension runs no
+local detection rules.
 
 **No AI Slop**  
 Copyright (c) 2026 Peter Yang  

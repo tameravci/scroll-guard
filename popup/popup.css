@@ -1,67 +1,70 @@
-body { width: 320px; }
+body { width: 300px; }
 
 /* minmax(0, 1fr) lets grid children shrink below their content width. */
 main {
   display: grid;
-  gap: 16px;
+  gap: 18px;
   grid-template-columns: minmax(0, 1fr);
-  padding: 14px 16px 10px;
+  padding: 14px 16px 12px;
 }
 
 .top {
   align-items: center;
   display: flex;
-  gap: 10px;
+  gap: 8px;
 }
-.top img { border-radius: 7px; }
-.title { flex: 1; min-width: 0; }
+.top img { border-radius: 4px; }
 h1 {
-  font-size: 15px;
-  font-weight: 650;
-  letter-spacing: -0.012em;
-  line-height: 1.2;
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
   margin: 0;
-}
-.title p {
-  color: var(--muted);
-  font-size: 12px;
-  margin: 1px 0 0;
 }
 
-.setup {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  display: grid;
-  gap: 10px;
-  grid-template-columns: minmax(0, 1fr);
-  padding: 14px;
+/* The result leads: one figure, one quiet line. */
+.summary p { margin: 0; }
+.figure {
+  align-items: baseline;
+  display: flex;
+  font-size: 30px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  gap: 7px;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
 }
-.setup h2 {
-  font-size: 14px;
-  font-weight: 650;
-  margin: 0;
+.figure .unit {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: -0.003em;
 }
+body.paused .figure { color: var(--muted); font-weight: 500; }
+.summary-line {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  margin-top: 4px !important;
+}
+
+.setup { display: grid; gap: 8px; }
 .setup p { margin: 0; }
-.setup > p:not(.status) { color: var(--muted); font-size: 13px; }
-.console-link { font-size: 12px; }
+.setup-title { font-size: 15px; font-weight: 600; letter-spacing: -0.012em; }
+.setup-copy { color: var(--muted); }
+.setup-foot { display: flex; font-size: 12px; gap: 10px; justify-content: space-between; }
+.setup-foot a { color: var(--muted); }
+
+.panel { display: grid; gap: 16px; }
 
 /* Paused: the controls stay usable, but read as inactive. */
-body.paused .panel { opacity: 0.55; }
+body.paused .panel { opacity: 0.5; }
 
 footer {
   align-items: center;
-  border-top: 1px solid var(--border);
   display: flex;
-  gap: 12px;
-  justify-content: space-between;
-  padding-top: 10px;
-}
-.stats {
-  color: var(--muted);
   font-size: 12px;
-  font-variant-numeric: tabular-nums;
-  margin: 0;
+  justify-content: space-between;
 }
 footer .button.link { font-size: 12px; }
-main > .status:empty { display: none; }
+#status { color: var(--faint); }
+#status.flash { color: var(--muted); }
