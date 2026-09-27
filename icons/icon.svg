@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- Scroll Guard: a feed of posts with one post framed, as the extension frames posts on X. -->
+  <rect x="4" y="4" width="120" height="120" rx="28" fill="#161616"/>
+  <rect x="26" y="22" width="76" height="14" rx="7" fill="#4a4a4a"/>
+  <rect x="21" y="48" width="86" height="32" rx="11" fill="none" stroke="#f5a623" stroke-width="7"/>
+  <rect x="32" y="59" width="64" height="10" rx="5" fill="#ececec"/>
+  <rect x="26" y="92" width="76" height="14" rx="7" fill="#4a4a4a"/>
+</svg>

@@ -2,6 +2,9 @@
   "name": "scroll-guard",
   "version": "0.3.0",
   "private": true,
+  "homepage": "https://github.com/tameravci/scroll-guard#readme",
+  "repository": { "type": "git", "url": "git+https://github.com/tameravci/scroll-guard.git" },
+  "bugs": { "url": "https://github.com/tameravci/scroll-guard/issues" },
   "description": "Chrome extension that flags AI slop, clickbait, bot spam, and scams in your X feed with TypeSafe Jev.",
   "scripts": {
     "check": "node scripts/check-extension.mjs",

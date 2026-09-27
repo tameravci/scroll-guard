@@ -46,6 +46,8 @@ const javascriptFiles = [
   "scripts/generate-icons.mjs",
   "scripts/package-extension.mjs",
   "scripts/serve-browser-fixture.mjs",
+  "scripts/store-assets.mjs",
+  "scripts/store-video.mjs",
   "scripts/test-jev-live.mjs",
   "scripts/test-jev-browser.mjs",
   "src/jev.js",

@@ -34,6 +34,8 @@ and text hashes are cached in worker memory; full post text is not cached there.
 
 The extension sends post text and its assessment rubric to
 `https://api.typesafe.ai/v1/systemone`, authenticated with your TypeSafe key.
+When you save a key, the extension first sends one test request with a fixed
+string ("Key check.") to check the key; it contains no post text.
 TypeSafe also receives ordinary connection metadata. Its own terms and privacy
 practices govern provider-side processing and retention; this extension makes no
 provider-side deletion or zero-retention guarantee. No analytics, telemetry, or
