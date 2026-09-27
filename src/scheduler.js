@@ -1,6 +1,6 @@
 (function attachScheduler(root, factory) {
   const api = factory();
-  root.SlopSpotter = Object.assign(root.SlopSpotter || {}, { scheduler: api });
+  root.ScrollGuard = Object.assign(root.ScrollGuard || {}, { scheduler: api });
   if (typeof module === "object" && module.exports) module.exports = api;
 })(typeof globalThis !== "undefined" ? globalThis : this, function createScheduler() {
   "use strict";

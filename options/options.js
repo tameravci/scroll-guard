@@ -1,10 +1,10 @@
 (async function setupPage() {
   "use strict";
 
-  const api = globalThis.SlopSpotter;
+  const api = globalThis.ScrollGuard;
   const $ = (selector) => document.querySelector(selector);
   const keyInput = $("#jevApiKey");
-  const refreshTail = globalThis.SlopSpotterPanel.attachKeyTail(keyInput);
+  const refreshTail = globalThis.ScrollGuardPanel.attachKeyTail(keyInput);
   const keyForm = $("#keyForm");
   const keyActions = $("#keyActions");
   const keyStatus = $("#keyStatus");
@@ -81,11 +81,11 @@
   });
 
   await api.init();
-  await globalThis.SlopSpotterPanel.mount($("#panel"), api, {
+  await globalThis.ScrollGuardPanel.mount($("#panel"), api, {
     hints: true,
     onChange: (next, change) => flash(
-      change.paused ? "Every type is off, so Slop Spotter is paused. Check one to turn it back on."
-        : change.resumed ? "Slop Spotter is back on."
+      change.paused ? "Every type is off, so Scroll Guard is paused. Check one to turn it back on."
+        : change.resumed ? "Scroll Guard is back on."
           : "Saved. Open X tabs update automatically."
     )
   });

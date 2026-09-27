@@ -1,6 +1,6 @@
 /* X rewrites the article's class attribute on hover, so key the frame to a data
    attribute that X does not manage. */
-article[data-testid="tweet"][data-slop-spotter-verdict] {
+article[data-testid="tweet"][data-scroll-guard-verdict] {
   --ss-highlight: #f5a623;
   --ss-wash: rgba(245, 166, 35, 0.035);
   background-image: linear-gradient(var(--ss-wash), var(--ss-wash)) !important;
@@ -10,7 +10,7 @@ article[data-testid="tweet"][data-slop-spotter-verdict] {
 
 /* X paints hover backgrounds on the post's children, which covered an inset
    shadow on the article. Draw the frame on an overlay above the content. */
-article[data-testid="tweet"][data-slop-spotter-verdict]::after {
+article[data-testid="tweet"][data-scroll-guard-verdict]::after {
   content: "";
   position: absolute;
   inset: 0;
@@ -20,22 +20,22 @@ article[data-testid="tweet"][data-slop-spotter-verdict]::after {
   pointer-events: none;
 }
 
-article[data-testid="tweet"][data-slop-spotter-verdict="scam"] {
+article[data-testid="tweet"][data-scroll-guard-verdict="scam"] {
   --ss-highlight: #ff526b;
   --ss-wash: rgba(255, 82, 107, 0.04);
 }
 
-article[data-testid="tweet"][data-slop-spotter-verdict="bot"] {
+article[data-testid="tweet"][data-scroll-guard-verdict="bot"] {
   --ss-highlight: #a78bfa;
   --ss-wash: rgba(167, 139, 250, 0.04);
 }
 
-article[data-testid="tweet"][data-slop-spotter-verdict="clickbait"] {
+article[data-testid="tweet"][data-scroll-guard-verdict="clickbait"] {
   --ss-highlight: #2dd4bf;
   --ss-wash: rgba(45, 212, 191, 0.04);
 }
 
-[data-slop-spotter-host] {
+[data-scroll-guard-host] {
   /* Fill a column card, and shrink instead of squeezing a row sibling. */
   display: block !important;
   box-sizing: border-box !important;

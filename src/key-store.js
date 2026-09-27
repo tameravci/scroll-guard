@@ -7,6 +7,7 @@
   // The key lives in the extension origin's IndexedDB. It survives extension
   // reloads and browser restarts. Content scripts run in the x.com origin, so
   // they cannot open this database.
+  // Named before the rename to Scroll Guard; kept so a saved key survives an update.
   const DB_NAME = "slopSpotterSecrets";
   const STORE = "secrets";
   const KEY_ID = "jevApiKey";

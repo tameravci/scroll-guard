@@ -1,13 +1,13 @@
 (function attachXAdapter(root, factory) {
   const api = factory(root);
-  root.SlopSpotter = Object.assign(root.SlopSpotter || {}, api);
+  root.ScrollGuard = Object.assign(root.ScrollGuard || {}, api);
   if (typeof module === "object" && module.exports) {
     module.exports = api;
   }
 })(typeof globalThis !== "undefined" ? globalThis : this, function createXAdapter(root) {
   "use strict";
 
-  const HANDOFF_HASH = "#slop-spotter-block";
+  const HANDOFF_HASH = "#scroll-guard-block";
   const HANDLE_PATTERN = /^[A-Za-z0-9_]{1,15}$/u;
 
   function normalizeWhitespace(value) {

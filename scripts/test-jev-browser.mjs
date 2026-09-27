@@ -81,8 +81,8 @@ try {
   await options.locator("#keyStatus").filter({ hasText: "No API key" }).waitFor();
   const feed = await context.newPage();
   await feed.goto("https://x.com/home");
-  await feed.waitForFunction(() => document.querySelectorAll("[data-slop-spotter-processed]").length === 3);
-  assert.equal(await feed.locator("[data-slop-spotter-host]").count(), 0);
+  await feed.waitForFunction(() => document.querySelectorAll("[data-scroll-guard-processed]").length === 3);
+  assert.equal(await feed.locator("[data-scroll-guard-host]").count(), 0);
   assert.equal(calls, 0);
   if (!live) {
     // A key Jev rejects is not saved.
@@ -106,14 +106,14 @@ try {
     });
   }
   await feed.reload();
-  await feed.waitForFunction(() => document.querySelectorAll("[data-slop-spotter-processed]").length === 3, null, { timeout: 60000 });
+  await feed.waitForFunction(() => document.querySelectorAll("[data-scroll-guard-processed]").length === 3, null, { timeout: 60000 });
   const diagnostics = await worker.evaluate(async () => (await chrome.storage.local.get("slopSpotterDiagnosticsV1")).slopSpotterDiagnosticsV1);
   // Model a feed card with intrinsic-size flex children, rather than only block layout.
   await feed.addStyleTag({ content: `
     article[data-testid="tweet"] { display:flex; flex-direction:column; align-items:flex-start; }
     article[data-testid="tweet"] > div { align-self:flex-start; }
   ` });
-  for (const host of await feed.locator("[data-slop-spotter-host]").all()) {
+  for (const host of await feed.locator("[data-scroll-guard-host]").all()) {
     const bounds = await host.boundingBox();
     const textLeft = await host.evaluate((node) => {
       const text = node.closest("article").querySelector("[data-testid=tweetText]");
@@ -145,10 +145,10 @@ try {
     }
   }));
   await rowFeed.goto("https://x.com/home");
-  await rowFeed.waitForFunction(() => document.querySelectorAll("[data-slop-spotter-host]").length === 2, null, { timeout: 60000 });
-  for (const article of await rowFeed.locator("article:has([data-slop-spotter-host])").all()) {
+  await rowFeed.waitForFunction(() => document.querySelectorAll("[data-scroll-guard-host]").length === 2, null, { timeout: 60000 });
+  for (const article of await rowFeed.locator("article:has([data-scroll-guard-host])").all()) {
     const text = await article.locator("[data-testid=tweetText]").boundingBox();
-    const card = await article.locator("[data-slop-spotter-host]").boundingBox();
+    const card = await article.locator("[data-scroll-guard-host]").boundingBox();
     assert.ok(text && text.width > 300, `Post text collapsed in row layout: ${JSON.stringify(text)}`);
     assert.ok(card && card.width > 200 && card.height > 30 && card.y >= text.y + text.height,
       `Assessment card is not below the post in row layout: ${JSON.stringify(card)}`);
@@ -162,7 +162,7 @@ try {
     const longFeed = await context.newPage();
     await longFeed.setViewportSize({ width: 800, height: 700 });
     await longFeed.goto("https://x.com/long");
-    await longFeed.waitForFunction(() => document.querySelectorAll("[data-slop-spotter-processed]").length >= 5, null, { timeout: 30000 });
+    await longFeed.waitForFunction(() => document.querySelectorAll("[data-scroll-guard-processed]").length >= 5, null, { timeout: 30000 });
     await longFeed.waitForTimeout(1000);
     const first = [...longRequests];
     assert.ok(first.length >= 5 && first.length <= 8, `Expected only near-screen posts, got ${JSON.stringify(first)}`);
@@ -172,17 +172,17 @@ try {
       await longFeed.evaluate((top) => window.scrollTo(0, top), y);
       await longFeed.waitForTimeout(700);
     }
-    await longFeed.waitForFunction(() => document.querySelectorAll("[data-slop-spotter-processed]").length === 30, null, { timeout: 30000 });
+    await longFeed.waitForFunction(() => document.querySelectorAll("[data-scroll-guard-processed]").length === 30, null, { timeout: 30000 });
     assert.equal(new Set(longRequests).size, 30);
     assert.equal(longRequests.length, 30, "No post may be requested twice");
     await longFeed.close();
   }
-  assert.equal(await feed.locator("[data-slop-spotter-host]").count(), 2, JSON.stringify(diagnostics));
-  assert.match(await feed.locator("article").nth(1).locator("[data-slop-spotter-host]").evaluate((host) => host.shadowRoot.textContent), /Likely AI slop/);
-  assert.match(await feed.locator("article").nth(2).locator("[data-slop-spotter-host]").evaluate((host) => host.shadowRoot.textContent), /Possible scam/);
+  assert.equal(await feed.locator("[data-scroll-guard-host]").count(), 2, JSON.stringify(diagnostics));
+  assert.match(await feed.locator("article").nth(1).locator("[data-scroll-guard-host]").evaluate((host) => host.shadowRoot.textContent), /Likely AI slop/);
+  assert.match(await feed.locator("article").nth(2).locator("[data-scroll-guard-host]").evaluate((host) => host.shadowRoot.textContent), /Possible scam/);
   for (const [index, verdict, color] of [[1, "slop", "245, 166, 35"], [2, "scam", "255, 82, 107"]]) {
     const card = feed.locator("article").nth(index);
-    assert.equal(await card.getAttribute("data-slop-spotter-verdict"), verdict);
+    assert.equal(await card.getAttribute("data-scroll-guard-verdict"), verdict);
     // X paints hover backgrounds on the post's children. The frame must stay above them.
     await feed.addStyleTag({ content: "article:hover > div { background: rgb(22, 24, 28) !important; position: relative; }" });
     await card.hover();
@@ -210,7 +210,7 @@ try {
       await feed.screenshot({ path: join(process.env.BROWSER_SCREENSHOTS, `${name}.png`), fullPage: true });
     }
   }
-  assert.equal(await feed.locator("article").nth(1).locator("[data-slop-spotter-host]").count(), 1);
+  assert.equal(await feed.locator("article").nth(1).locator("[data-scroll-guard-host]").count(), 1);
   for (const index of [1, 2]) {
     const card = feed.locator("article").nth(index);
     await card.getByRole("button", { name: "Block @TestAccount", exact: true }).waitFor({ state: "visible" });
@@ -220,7 +220,7 @@ try {
     const opened = context.waitForEvent("page");
     await feed.locator("article").nth(2).getByRole("button", { name: "Block @TestAccount", exact: true }).click();
     const handoff = await opened;
-    await handoff.waitForURL("https://x.com/TestAccount#slop-spotter-block");
+    await handoff.waitForURL("https://x.com/TestAccount#scroll-guard-block");
     await handoff.close();
   }
   const localData = await worker.evaluate(() => chrome.storage.local.get(null));
@@ -248,15 +248,15 @@ try {
   if (!live) {
     assert.equal(calls, 3);
     await feed.reload();
-    await feed.waitForFunction(() => document.querySelectorAll("[data-slop-spotter-processed]").length === 3);
+    await feed.waitForFunction(() => document.querySelectorAll("[data-scroll-guard-processed]").length === 3);
     assert.equal(calls, 3, "Reload should reuse cached decisions");
     await feed.locator("article").nth(1).evaluate((article, text) => {
       article.querySelector("[data-testid=tweetText]").textContent = text;
       article.querySelector("a").href = "/TestAccount/status/200";
     }, samples[0]);
-    await feed.waitForFunction(() => document.querySelectorAll("[data-slop-spotter-host]").length === 1 && document.querySelectorAll("[data-slop-spotter-processed]").length === 3);
+    await feed.waitForFunction(() => document.querySelectorAll("[data-scroll-guard-host]").length === 1 && document.querySelectorAll("[data-scroll-guard-processed]").length === 3);
     assert.equal(calls, 3, "Recycled cards must reclassify and reuse cached text decisions");
-    assert.equal(await feed.locator("article").nth(1).evaluate((node) => node.hasAttribute("data-slop-spotter-verdict")), false);
+    assert.equal(await feed.locator("article").nth(1).evaluate((node) => node.hasAttribute("data-scroll-guard-verdict")), false);
     await options.locator("#removeKey").click();
     await options.locator("#keyStatus").filter({ hasText: "No API key" }).waitFor();
     fail = true;
@@ -271,8 +271,8 @@ try {
     await feed.waitForTimeout(5000);
     assert.equal(calls, 6, `The pause must block retries (calls: ${calls})`);
     // Failed posts stay unchecked so they retry after the pause; they are not dropped.
-    assert.equal(await feed.locator("[data-slop-spotter-processed]").count(), 0);
-    assert.equal(await feed.locator("[data-slop-spotter-host]").count(), 0);
+    assert.equal(await feed.locator("[data-scroll-guard-processed]").count(), 0);
+    assert.equal(await feed.locator("[data-scroll-guard-host]").count(), 0);
     const popup = await context.newPage();
     await popup.goto(`chrome-extension://${extensionId}/popup/popup.html`);
     await popup.locator("#diagnostics").filter({ hasText: "Scanner error" }).waitFor();

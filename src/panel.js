@@ -129,5 +129,5 @@
     return update;
   }
 
-  root.SlopSpotterPanel = { VERDICTS, LEVELS, mount, attachKeyTail };
+  root.ScrollGuardPanel = { VERDICTS, LEVELS, mount, attachKeyTail };
 })(globalThis);

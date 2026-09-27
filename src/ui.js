@@ -1,13 +1,13 @@
 (function attachUi(root, factory) {
   const api = factory(root);
-  root.SlopSpotter = Object.assign(root.SlopSpotter || {}, api);
+  root.ScrollGuard = Object.assign(root.ScrollGuard || {}, api);
   if (typeof module === "object" && module.exports) {
     module.exports = api;
   }
 })(typeof globalThis !== "undefined" ? globalThis : this, function createUi(root) {
   "use strict";
 
-  const HOST_ATTRIBUTE = "data-slop-spotter-host";
+  const HOST_ATTRIBUTE = "data-scroll-guard-host";
   let handoffHost;
 
   const CARD_STYLES = `
@@ -34,15 +34,15 @@
       width: auto;
       min-width: 0;
     }
-    :host([data-slop-spotter-verdict="scam"]) {
+    :host([data-scroll-guard-verdict="scam"]) {
       --ss-amber: #ff526b;
       --ss-amber-soft: rgba(255, 82, 107, 0.10);
     }
-    :host([data-slop-spotter-verdict="bot"]) {
+    :host([data-scroll-guard-verdict="bot"]) {
       --ss-amber: #a78bfa;
       --ss-amber-soft: rgba(167, 139, 250, 0.10);
     }
-    :host([data-slop-spotter-verdict="clickbait"]) {
+    :host([data-scroll-guard-verdict="clickbait"]) {
       --ss-amber: #2dd4bf;
       --ss-amber-soft: rgba(45, 212, 191, 0.10);
     }
@@ -129,12 +129,12 @@
       white-space: nowrap;
     }
     .block:hover { background: var(--ss-amber); }
-    :host([data-slop-spotter-verdict="scam"]) .block { background: #ffdce1; }
-    :host([data-slop-spotter-verdict="scam"]) .block:hover { background: var(--ss-amber); }
-    :host([data-slop-spotter-verdict="bot"]) .block { background: #ebe5ff; }
-    :host([data-slop-spotter-verdict="bot"]) .block:hover { background: var(--ss-amber); }
-    :host([data-slop-spotter-verdict="clickbait"]) .block { background: #d9f7f1; }
-    :host([data-slop-spotter-verdict="clickbait"]) .block:hover { background: var(--ss-amber); }
+    :host([data-scroll-guard-verdict="scam"]) .block { background: #ffdce1; }
+    :host([data-scroll-guard-verdict="scam"]) .block:hover { background: var(--ss-amber); }
+    :host([data-scroll-guard-verdict="bot"]) .block { background: #ebe5ff; }
+    :host([data-scroll-guard-verdict="bot"]) .block:hover { background: var(--ss-amber); }
+    :host([data-scroll-guard-verdict="clickbait"]) .block { background: #d9f7f1; }
+    :host([data-scroll-guard-verdict="clickbait"]) .block:hover { background: var(--ss-amber); }
     .status { font-size: 12px; margin: 8px 0 0; opacity: 0.75; }
     .card > .status { margin: 0; padding: 0 14px 10px; }
     .card > .status:empty { display: none; }
@@ -269,21 +269,21 @@
     host.setAttribute(HOST_ATTRIBUTE, "");
     const { isScam, isBot, isClickbait } = payload.detection;
     const verdict = isScam ? "scam" : isBot ? "bot" : isClickbait ? "clickbait" : "slop";
-    host.dataset.slopSpotterVerdict = verdict;
-    host.dataset.slopSpotterHandle = payload.parsed.handle.toLowerCase();
+    host.dataset.scrollGuardVerdict = verdict;
+    host.dataset.scrollGuardHandle = payload.parsed.handle.toLowerCase();
     host.addEventListener("click", (event) => event.stopPropagation());
     host.addEventListener("keydown", (event) => event.stopPropagation());
 
     const shadow = host.attachShadow({ mode: "open" });
     const style = element("style", "", CARD_STYLES);
     const card = element("aside", "card");
-    card.setAttribute("aria-label", "Slop Spotter finding");
+    card.setAttribute("aria-label", "Scroll Guard finding");
     const verdictLabel = { scam: "Possible scam", bot: "Likely bot spam", clickbait: "Likely clickbait", slop: "Likely AI slop" }[verdict];
     const percent = Math.round(payload.detection.probability * 100);
     const summary = element("button", "summary");
     summary.type = "button";
-    summary.title = "Slop Spotter: view Jev assessment";
-    summary.setAttribute("aria-label", `Slop Spotter: ${verdictLabel}, ${percent}% probability. View Jev assessment`);
+    summary.title = "Scroll Guard: view Jev assessment";
+    summary.setAttribute("aria-label", `Scroll Guard: ${verdictLabel}, ${percent}% probability. View Jev assessment`);
     summary.setAttribute("aria-expanded", "false");
     summary.setAttribute("aria-controls", "finding-details");
     const mark = element("span", "mark");
@@ -333,7 +333,7 @@
       card.append(details);
     }
     shadow.append(style, card);
-    article.dataset.slopSpotterVerdict = verdict;
+    article.dataset.scrollGuardVerdict = verdict;
     annotationContainer(article).append(host);
     alignWithText(article, host);
     return host;
@@ -344,9 +344,9 @@
       ?.querySelectorAll?.(`[${HOST_ATTRIBUTE}]`)
       .forEach((host) => host.remove());
     root.document
-      ?.querySelectorAll?.("article[data-slop-spotter-verdict]")
+      ?.querySelectorAll?.("article[data-scroll-guard-verdict]")
       .forEach((article) => {
-        delete article.dataset.slopSpotterVerdict;
+        delete article.dataset.scrollGuardVerdict;
       });
   }
 
@@ -357,7 +357,7 @@
 
     if (!handoffHost) {
       handoffHost = element("div");
-      handoffHost.setAttribute("data-slop-spotter-handoff", "");
+      handoffHost.setAttribute("data-scroll-guard-handoff", "");
       Object.assign(handoffHost.style, {
         left: "0",
         pointerEvents: "auto",
@@ -379,7 +379,7 @@
     const mark = element("span", "mark", status.state === "error" ? "!" : "⚠");
     const copy = element("div", "copy");
     copy.append(
-      element("span", "title", status.handle ? `Slop Spotter · @${status.handle}` : "Slop Spotter"),
+      element("span", "title", status.handle ? `Scroll Guard · @${status.handle}` : "Scroll Guard"),
       element("span", "", status.message)
     );
     const close = element("button", "", "×");

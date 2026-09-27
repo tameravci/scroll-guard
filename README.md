@@ -1,8 +1,8 @@
-# Slop Spotter for X
+# Scroll Guard
 
 Flags AI slop, clickbait, bot spam, and scams in your X feed, for pennies a month.
 
-Slop Spotter is an open-source Chrome extension. TypeSafe's Jev model reads each post
+Scroll Guard is an open-source Chrome extension. TypeSafe's Jev model reads each post
 as you scroll, and flagged posts get a colored frame, a short verdict, and a Block
 button that opens X's own confirmation. It never blocks anything automatically.
 
@@ -41,7 +41,7 @@ Your browser sends each post straight to Jev.
 [Pangram](https://www.pangram.com/pricing)'s Individual plan costs $20 a month for
 300,000 words, including feed scanning. This extension pays Jev per post instead.
 
-|  | Pangram Individual | Slop Spotter on Jev |
+|  | Pangram Individual | Scroll Guard on Jev |
 |---|---|---|
 | Price | $20/month, flat | Pay per use, about $0.00008 per post |
 | Posts for $20 | about 6,000–20,000 | about 246,000 |
@@ -57,7 +57,7 @@ How we got these numbers:
 - Daily post counts assume about 30 minutes a day on X at 5–10 posts a minute.
 
 **It is not a drop-in Pangram replacement.** Pangram runs a classifier trained to
-detect AI-written text and publishes accuracy benchmarks. Slop Spotter asks a general
+detect AI-written text and publishes accuracy benchmarks. Scroll Guard asks a general
 decision model to apply a written rubric, and we have not measured its accuracy yet.
 It may miss more AI-written posts, or flag more human posts, than a purpose-built
 detector. In exchange,
@@ -133,9 +133,9 @@ The button opens X's native confirmation; it does not confirm the block for you.
 
 X does not document a public account-specific web URL that opens its Block
 confirmation. Its authenticated block API is an Enterprise integration.
-Slop Spotter therefore creates an extension-controlled handoff:
+Scroll Guard therefore creates an extension-controlled handoff:
 
-`https://x.com/<handle>#slop-spotter-block`
+`https://x.com/<handle>#scroll-guard-block`
 
 On that exact profile, the content script verifies the handle, locates the
 profile action menu, and selects the exact English `Block @handle` item. It

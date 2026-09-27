@@ -1,6 +1,6 @@
 # Privacy notice
 
-Slop Spotter for X sends rendered X post text to TypeSafe's Jev API to provide its
+Scroll Guard sends rendered X post text to TypeSafe's Jev API to provide its
 highlighting feature.
 
 ## Data processed

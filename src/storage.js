@@ -1,12 +1,14 @@
 (function attachStorage(root, factory) {
   const api = factory(root);
-  root.SlopSpotter = Object.assign(root.SlopSpotter || {}, api);
+  root.ScrollGuard = Object.assign(root.ScrollGuard || {}, api);
   if (typeof module === "object" && module.exports) {
     module.exports = api;
   }
 })(typeof globalThis !== "undefined" ? globalThis : this, function createStorage(root) {
   "use strict";
 
+  // These names predate the rename to Scroll Guard. They stay so that saved settings
+  // and history survive an update.
   const STORAGE_KEY = "slopSpotterStateV1";
   const DIAGNOSTICS_KEY = "slopSpotterDiagnosticsV1";
   const MAX_ACCOUNTS = 300;

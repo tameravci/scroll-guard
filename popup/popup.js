@@ -1,7 +1,7 @@
 (async function setupPopup() {
   "use strict";
 
-  const api = globalThis.SlopSpotter;
+  const api = globalThis.ScrollGuard;
   const $ = (selector) => document.querySelector(selector);
   const enabled = $("#enabled");
   const setup = $("#setup");
@@ -12,7 +12,7 @@
   const RESTING = status.textContent;
   let statusTimer;
   let hasKey = false;
-  const refreshTail = globalThis.SlopSpotterPanel.attachKeyTail($("#jevApiKey"));
+  const refreshTail = globalThis.ScrollGuardPanel.attachKeyTail($("#jevApiKey"));
 
   // Confirmations replace the footer credit briefly, so nothing shifts.
   function flash(message) {
@@ -101,7 +101,7 @@
   const settings = await api.getSettings();
   const dashboard = await api.getDashboard();
   enabled.checked = settings.enabled;
-  const controls = await globalThis.SlopSpotterPanel.mount(panel, api, {
+  const controls = await globalThis.ScrollGuardPanel.mount(panel, api, {
     counts: dashboard.recent.byVerdict,
     onChange: async (next, change) => {
       if (next) enabled.checked = next.enabled;

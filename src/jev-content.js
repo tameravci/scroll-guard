@@ -1,4 +1,4 @@
-globalThis.SlopSpotter = Object.assign(globalThis.SlopSpotter || {}, {
+globalThis.ScrollGuard = Object.assign(globalThis.ScrollGuard || {}, {
   async detectSlop(text, options = {}) {
     const response = await chrome.runtime.sendMessage({ type: "jev-evaluate", text, sensitivity: options.sensitivity, verdicts: options.verdicts });
     if (!response?.detection) {

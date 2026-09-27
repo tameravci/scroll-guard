@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Slop Spotter for X",
+  "name": "Scroll Guard",
   "version": "0.3.0",
-  "description": "Uses TypeSafe Jev to assess slop in X posts and offers a user-confirmed block button on flagged posts.",
+  "description": "Flags AI slop, clickbait, bot spam, and scams in your X feed with TypeSafe Jev. Bring your own key.",
   "host_permissions": ["https://api.typesafe.ai/*"],
   "background": { "service_worker": "src/background.js" },
   "permissions": [
@@ -29,7 +29,7 @@
     }
   ],
   "action": {
-    "default_title": "Slop Spotter for X",
+    "default_title": "Scroll Guard",
     "default_popup": "popup/popup.html",
     "default_icon": {
       "16": "icons/icon-16.png",

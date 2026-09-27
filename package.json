@@ -1,8 +1,8 @@
 {
-  "name": "slop-spotter-for-x",
+  "name": "scroll-guard",
   "version": "0.3.0",
   "private": true,
-  "description": "A Chrome extension that uses TypeSafe Jev to assess slop in X posts.",
+  "description": "Chrome extension that flags AI slop, clickbait, bot spam, and scams in your X feed with TypeSafe Jev.",
   "scripts": {
     "check": "node scripts/check-extension.mjs",
     "icons": "node scripts/generate-icons.mjs",

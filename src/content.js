@@ -1,7 +1,7 @@
 (function startContentScript(root) {
   "use strict";
 
-  const api = root.SlopSpotter;
+  const api = root.ScrollGuard;
   if (!api?.detectSlop || !api?.parsePost || !api?.recordObservation || !api?.scheduler) {
     return;
   }
@@ -87,11 +87,11 @@
     if (postInputs.get(article) !== input) {
       postInputs.set(article, input);
       diagnosticOutcomes.delete(article);
-      delete article.dataset.slopSpotterProcessed;
-      delete article.dataset.slopSpotterPending;
-      delete article.dataset.slopSpotterFlagged;
-      article.querySelector("[data-slop-spotter-host]")?.remove();
-      delete article.dataset.slopSpotterVerdict;
+      delete article.dataset.scrollGuardProcessed;
+      delete article.dataset.scrollGuardPending;
+      delete article.dataset.scrollGuardFlagged;
+      article.querySelector("[data-scroll-guard-host]")?.remove();
+      delete article.dataset.scrollGuardVerdict;
     }
     const current = () => {
       const latest = api.parsePost(article);
@@ -100,17 +100,17 @@
         latest?.statusId === parsed.statusId && latest?.text === parsed.text;
     };
     const alreadyProcessed =
-      article.dataset.slopSpotterProcessed === String(expectedGeneration);
+      article.dataset.scrollGuardProcessed === String(expectedGeneration);
     const flaggedBefore =
-      article.dataset.slopSpotterFlagged === String(expectedGeneration);
-    const annotationPresent = article.querySelector("[data-slop-spotter-host]");
+      article.dataset.scrollGuardFlagged === String(expectedGeneration);
+    const annotationPresent = article.querySelector("[data-scroll-guard-host]");
     if (
       (alreadyProcessed && (!flaggedBefore || annotationPresent)) ||
-      article.dataset.slopSpotterPending === String(expectedGeneration)
+      article.dataset.scrollGuardPending === String(expectedGeneration)
     ) {
       return;
     }
-    article.dataset.slopSpotterPending = String(expectedGeneration);
+    article.dataset.scrollGuardPending = String(expectedGeneration);
 
     try {
       const detection = await api.detectSlop(parsed.text, {
@@ -137,10 +137,10 @@
       }
 
       if (detection.isFlagged) {
-        article.dataset.slopSpotterFlagged = String(expectedGeneration);
+        article.dataset.scrollGuardFlagged = String(expectedGeneration);
         mountFinding(article, { detection, parsed });
       } else {
-        delete article.dataset.slopSpotterFlagged;
+        delete article.dataset.scrollGuardFlagged;
       }
       diagnosticOutcomes.set(article, {
         parsed: true,
@@ -148,7 +148,7 @@
         highlighted: detection.isFlagged,
         error: false
       });
-      article.dataset.slopSpotterProcessed = String(expectedGeneration);
+      article.dataset.scrollGuardProcessed = String(expectedGeneration);
     } catch (error) {
       if (!current()) return;
       if (error.retryable) {
@@ -164,7 +164,7 @@
         throw error;
       }
       // Avoid repeated paid requests on every DOM mutation after a failure.
-      article.dataset.slopSpotterProcessed = String(expectedGeneration);
+      article.dataset.scrollGuardProcessed = String(expectedGeneration);
       lastProcessingError = safeErrorMessage(error);
       diagnosticOutcomes.set(article, {
         parsed: false,
@@ -174,8 +174,8 @@
       });
       throw error;
     } finally {
-      if (postInputs.get(article) === input && article.dataset.slopSpotterPending === String(expectedGeneration)) {
-        delete article.dataset.slopSpotterPending;
+      if (postInputs.get(article) === input && article.dataset.scrollGuardPending === String(expectedGeneration)) {
+        delete article.dataset.scrollGuardPending;
       }
       publishDiagnostics();
     }
@@ -199,13 +199,13 @@
     const input = JSON.stringify([parsed.handle, parsed.statusId, parsed.text]);
     if (postInputs.get(article) !== input) return true;
     const current = String(generation);
-    if (article.dataset.slopSpotterPending === current) return false;
+    if (article.dataset.scrollGuardPending === current) return false;
     const retry = retries.get(article);
     if (retry && retry.input === input && retry.at > Date.now()) return false;
-    const processed = article.dataset.slopSpotterProcessed === current;
-    const flagged = article.dataset.slopSpotterFlagged === current;
+    const processed = article.dataset.scrollGuardProcessed === current;
+    const flagged = article.dataset.scrollGuardFlagged === current;
     // X can re-render a flagged card without the annotation; remount from the cache.
-    return !processed || (flagged && !article.querySelector("[data-slop-spotter-host]"));
+    return !processed || (flagged && !article.querySelector("[data-scroll-guard-host]"));
   }
 
   // Keep a few requests open and always spend the next one on the post the reader
@@ -266,9 +266,9 @@
     lastProcessingError = "";
     api.removeAllAnnotations();
     api.findPosts(root.document).forEach((article) => {
-      delete article.dataset.slopSpotterProcessed;
-      delete article.dataset.slopSpotterPending;
-      delete article.dataset.slopSpotterFlagged;
+      delete article.dataset.scrollGuardProcessed;
+      delete article.dataset.scrollGuardPending;
+      delete article.dataset.scrollGuardFlagged;
     });
 
     if (settings.enabled) {

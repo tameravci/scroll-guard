@@ -11,7 +11,7 @@ import { dirname, join, relative, resolve } from "node:path";
 const projectRoot = resolve(new URL("..", import.meta.url).pathname);
 const outputPath = resolve(
   projectRoot,
-  process.argv[2] || "artifacts/slop-spotter-for-x-0.3.0.zip"
+  process.argv[2] || "artifacts/scroll-guard-0.3.0.zip"
 );
 const includedPaths = [
   "manifest.json",
