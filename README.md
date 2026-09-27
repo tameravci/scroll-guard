@@ -118,8 +118,19 @@ Chrome for Testing executable instead of Playwright's Chromium. The temporary
 browser profile is deleted after each run; your normal browser is not used.
 
 The X DOM adapter is deliberately isolated in `src/x-adapter.js`, since X can
-change its private test IDs and markup. Detector and account-threshold logic
-have dependency-free tests under `tests/`.
+change its private test IDs and markup. The Jev rubric, storage, and scheduling
+logic have dependency-free tests under `tests/`.
+
+## Contributing
+
+Pull requests are welcome. Good places to start:
+
+- Support for another feed, such as Bluesky, Threads, or LinkedIn.
+- Rubric changes, with example posts that show the improvement.
+- Fixes when X changes its markup (see `src/x-adapter.js`).
+
+Before you open a pull request, run `npm run verify` and `npm run test:browser`.
+For larger changes, open an issue first so we can agree on the approach.
 
 ## License and upstream notice
 
