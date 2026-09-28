@@ -5,13 +5,12 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
-import { renderMusic } from "./store-music.mjs";
+import { renderMusic, BEAT, CHIPS, FINAL, DURATION } from "./store-music.mjs";
 import { join, resolve } from "node:path";
 
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || "playwright");
 const project = resolve(new URL("..", import.meta.url).pathname);
 const FPS = Number(process.env.REEL_FPS || 60);
-const DURATION = 15;
 
 const scene = String.raw`<!doctype html><html><head><meta charset="utf-8">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -59,6 +58,8 @@ const scene = String.raw`<!doctype html><html><head><meta charset="utf-8">
 <div id="vignette"></div>
 <div id="grain"></div>
 <script>
+// Cue times from store-music.mjs, injected so picture and score share one timeline.
+const BEAT = ${BEAT}, CHIPS = ${CHIPS}, FINAL = ${FINAL}, DURATION = ${DURATION};
 // ---------- easing and helpers ----------
 const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
 const prog = (t, a, b) => clamp((t - a) / (b - a));
@@ -218,7 +219,9 @@ window.seek = (t, frameIndex) => {
   // ----- the morph: neighbours collapse into the icon -----
   const hold = iconRects(960, 540, 380);
   const settle = inOutCubic(prog(t, 8.45, 9.25));
-  const lockup = iconRects(960, lerp(540, 330, settle), lerp(380, 220, settle));
+  // During the hold, the lockup pushes in slowly and settles before the chips land.
+  const drift = lerp(1, 1.05, inOutCubic(prog(t, 9.25, CHIPS - 0.1)));
+  const lockup = iconRects(960, lerp(540, 330, settle), lerp(380, 220, settle) * drift);
   const target = settle > 0 ? lockup : hold;
   const cardRect = (k) => ({ x: FX, y: TOP0 + k * PITCH, w: CW, h: CH, r: 22 });
   const show = inMorph ? 1 : 0;
@@ -247,10 +250,12 @@ window.seek = (t, frameIndex) => {
   // Glow and ring pulses from the icon.
   const icx = 960, icy = lerp(540, 330, settle);
   const glowP = prog(t, 7.4, 8.6);
-  const glowEnd = prog(t, 13.8, 15);
-  glow.style.opacity = (Math.sin(Math.PI * clamp(glowP)) * 0.9 + (t > 8.6 ? 0.35 + 0.25 * Math.sin(Math.PI * glowEnd) : 0)).toFixed(3);
+  const glowEnd = prog(t, FINAL + 0.7, DURATION);
+  // After the impact the glow breathes once per bar, in time with the score.
+  const breathe = t > 8.6 ? 0.1 * Math.sin((2 * Math.PI * (t - 8.6)) / (4 * BEAT)) : 0;
+  glow.style.opacity = (Math.sin(Math.PI * clamp(glowP)) * 0.9 + (t > 8.6 ? 0.35 + breathe + 0.25 * Math.sin(Math.PI * glowEnd) : 0)).toFixed(3);
   glow.style.transform = "translate(" + (icx - 700) + "px," + (icy - 700) + "px)";
-  [[7.85, 0], [13.1, 1]].forEach(([at, i]) => {
+  [[7.85, 0], [FINAL, 1]].forEach(([at, i]) => {
     const p = prog(t, at, at + 1.0);
     const radius = lerp(120, 900, outCubic(p));
     rings[i].style.opacity = p > 0 && p < 1 ? (0.55 * (1 - p)).toFixed(3) : 0;
@@ -259,27 +264,27 @@ window.seek = (t, frameIndex) => {
   });
 
   // ----- wordmark, tagline, proof chips -----
-  wordmark.style.transform = "translateY(" + 470 + "px)";
+  wordmark.style.transform = "translateY(470px) scale(" + drift.toFixed(4) + ")";
   letters.forEach((span, i) => {
     const p = outExpo(prog(t, 8.975 + i * 0.035, 8.975 + i * 0.035 + 0.6));
     span.style.opacity = p;
     span.style.transform = "translateY(" + ((1 - p) * 90).toFixed(2) + "px)";
     span.style.filter = p < 1 ? "blur(" + ((1 - p) * 16).toFixed(2) + "px)" : "none";
   });
-  const tagIn = outExpo(prog(t, 9.85, 10.5)), tagOut = inExpo(prog(t, 11.3, 11.65));
+  const tagIn = outExpo(prog(t, 9.85, 10.5)), tagOut = inExpo(prog(t, CHIPS - 0.3, CHIPS + 0.05));
   tagline.style.top = "680px";
   tagline.style.opacity = tagIn * (1 - tagOut);
   tagline.style.transform = "translateY(" + ((1 - tagIn) * 30 - tagOut * 24) + "px)";
   chipRow.style.top = "700px";
   chips.forEach((chip, i) => {
-    const at = 11.6 + i * 0.375;
+    const at = CHIPS + i * BEAT;
     const p = prog(t, at, at + 0.5);
     chip.style.opacity = clamp(p * 5);
     chip.style.transform = "scale(" + (p > 0 ? lerp(1.55, 1, outBack(p, 2.2)) : 1.55).toFixed(4) + ")";
     const flash = 1 - outCubic(prog(t, at, at + 0.5));
     chip.style.borderColor = mixColor([45, 46, 50], [245, 166, 35], p > 0 ? flash : 0);
   });
-  const foot = outExpo(prog(t, 13.25, 13.9));
+  const foot = outExpo(prog(t, FINAL + 0.15, FINAL + 0.8));
   footer.style.top = "880px";
   footer.style.opacity = foot;
   footer.style.transform = "translateY(" + ((1 - foot) * 20) + "px)";

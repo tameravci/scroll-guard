@@ -6,8 +6,12 @@ export const SR = 48000;
 export const BEAT = 0.375; // 160 BPM
 export const DROP = 2.6; // first flag frame; the beat grid is anchored here
 export const beat = (n) => DROP + n * BEAT;
+// Cues shared with the reel, so picture and sound cannot drift apart.
+export const CHIPS = beat(32); // 14.6: the three proof chips, one per beat
+export const FINAL = beat(36); // 16.1: the final chord and lockup
+export const DURATION = 18;
 
-export function renderMusic(path, duration = 15) {
+export function renderMusic(path, duration = DURATION) {
   const N = Math.round(SR * duration);
   const bus = () => [new Float32Array(N), new Float32Array(N)];
   const drums = bus(), music = bus(), fx = bus(), send = bus();
@@ -229,7 +233,8 @@ export function renderMusic(path, duration = 15) {
   crash(IMPACT, 0.45, 3.2);
 
   // Wordmark groove: arpeggio, bass, soft drums, and a blip per letter.
-  const groove = [["Am", 14, 18], ["F", 18, 22], ["C", 22, 24]];
+  // Two full progressions under the wordmark; the G bar builds into the chips.
+  const groove = [["Am", 14, 18], ["F", 18, 22], ["C", 22, 26], ["G", 26, 32]];
   for (const [name, from, to] of groove) {
     pad(beat(from), (to - from) * BEAT, CH[name], 0.075, 1600);
     for (let n = from; n < to - 0.01; n += 1) bassNote(beat(n), BEAT - 0.03, ROOT[name], 0.26);
@@ -239,7 +244,9 @@ export function renderMusic(path, duration = 15) {
       pluck(beat(n), tones[pattern[j % pattern.length]], 0.12, j % 2 ? 0.25 : -0.25);
     }
   }
-  for (let n = 14; n < 24; n += 0.5) {
+  riser(beat(30), CHIPS, 0.3);
+  for (let n = 31; n < 32; n += 0.25) snare(beat(n), 0.08 + 0.16 * (n - 31));
+  for (let n = 14; n < 32; n += 0.5) {
     if (n > 14 && n % 2 === 0) kick(beat(n), 0.75);
     if (n % 2 === 1) clap(beat(n), 0.3);
     if (n >= 16) hat(beat(n), n % 1 ? 0.09 : 0.05);
@@ -248,14 +255,13 @@ export function renderMusic(path, duration = 15) {
 
   // Proof chips: three rising hits, then the final chord.
   [CH.Am, [60, 64, 67], [64, 67, 71]].forEach((chord, i) => {
-    const t = beat(24 + i);
+    const t = CHIPS + i * BEAT;
     kick(t, 0.9);
     stab(t, up(chord, 12), 0.36);
     boom(t, 0.4, 0.6, 90, 45);
   });
-  for (let n = 24; n < 28; n += 0.5) hat(beat(n), n % 1 ? 0.1 : 0.06, n === 27.5);
-  pad(beat(24), 4 * BEAT, CH.C, 0.07, 1700);
-  const FINAL = beat(28); // 13.1
+  for (let n = 32; n < 36; n += 0.5) hat(beat(n), n % 1 ? 0.1 : 0.06, n === 35.5);
+  pad(CHIPS, 4 * BEAT, CH.C, 0.07, 1700);
   kick(FINAL, 1.1);
   boom(FINAL, 0.9, 2.0, 75, 30);
   stab(FINAL, [...up(CH.Am, 12), 83], 0.45);
