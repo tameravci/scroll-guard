@@ -34,6 +34,25 @@ const longFixture = `<html><head><meta charset="utf-8"><style>
 body { margin:0; font:15px/1.5 Arial,sans-serif; } main { max-width:600px; margin:auto; }
 article { height:280px; border-bottom:1px solid #ddd; padding:16px; box-sizing:border-box; }
 </style></head><body><main>${Array.from({ length: 30 }, (_, i) => `<article data-testid="tweet"><div data-testid="User-Name"><span>Feed ${i}</span><span>@Feed${i}</span></div><a href="/Feed${i}/status/${900 + i}"><time>1h</time></a><div data-testid="tweetText">Long feed post number ${i} about ordinary things.</div></article>`).join("")}</main></body></html>`;
+// X's real markup: emoji are images with the character as alt text, a quoted post is a
+// role="link" card with its own author line, and a photo without a description gets
+// the one-word alt "Image".
+const pixel = "data:image/gif;base64,R0lGODlhAQABAAAAACw=";
+const quoteRequests = [];
+const quoteFixture = `<html><head><meta charset="utf-8"></head><body><main>
+<article data-testid="tweet"><div data-testid="User-Name"><span>Quote Test</span><span>@QuoteTest</span></div>
+<a href="/QuoteTest/status/500"><time>1h</time></a>
+<div data-testid="tweetText"><span>Quote check: movie night </span><img alt="🍿" src="${pixel}"><span> with the team</span></div>
+<div data-testid="tweetPhoto"><img alt="A cinema hall full of people" src="${pixel}"></div>
+<div data-testid="tweetPhoto"><img alt="Image" src="${pixel}"></div>
+<div role="link"><div data-testid="User-Name"><span>Other</span><span>@Other</span></div><time>2h</time>
+<div data-testid="tweetText">Original take <img alt="🎬" src="${pixel}"></div>
+<div data-testid="tweetPhoto"><img alt="Poster for the new film" src="${pixel}"></div></div></article>
+<article data-testid="tweet"><div data-testid="User-Name"><span>Repost Only</span><span>@RepostOnly</span></div>
+<a href="/RepostOnly/status/501"><time>1h</time></a>
+<div role="link"><div data-testid="User-Name"><span>Other</span><span>@Other</span></div><time>3h</time>
+<div data-testid="tweetText">Quote check: text of the quoted post only</div></div></article>
+</main></body></html>`;
 let fail = false;
 let context;
 const launchOptions = {
@@ -44,7 +63,7 @@ const launchOptions = {
 try {
   context = await chromium.launchPersistentContext(profile, launchOptions);
   await context.route("https://x.com/**", (route) => route.fulfill({ contentType: "text/html",
-    body: new URL(route.request().url()).pathname === "/long" ? longFixture : fixture }));
+    body: { "/long": longFixture, "/quote": quoteFixture }[new URL(route.request().url()).pathname] || fixture }));
   if (!live) {
     await context.route("https://api.typesafe.ai/**", async (route) => {
       const request = route.request().postDataJSON();
@@ -59,9 +78,10 @@ try {
       }
       const longMatch = /^Long feed post number (\d+)/u.exec(request.state.post);
       if (longMatch) longRequests.push(Number(longMatch[1]));
+      else if (request.state.post.startsWith("Quote check")) quoteRequests.push(request.state);
       else calls += 1;
       assert.equal(route.request().headers().authorization, `Bearer ${key}`);
-      assert.deepEqual(Object.keys(request.state), ["post"]);
+      if (!request.state.post.startsWith("Quote check")) assert.deepEqual(Object.keys(request.state), ["post"]);
       if (fail) { await route.fulfill({ status: 429, body: "Test quota failure" }); return; }
       const slop = request.state.post === samples[1];
       const scam = request.state.post === samples[2];
@@ -176,6 +196,18 @@ try {
     assert.equal(new Set(longRequests).size, 30);
     assert.equal(longRequests.length, 30, "No post may be requested twice");
     await longFeed.close();
+    // Jev gets the post's own text with emoji, the quoted post as context, and only
+    // the photo descriptions the author wrote. A repost with no text of its own is skipped.
+    const quoteFeed = await context.newPage();
+    await quoteFeed.goto("https://x.com/quote");
+    await quoteFeed.waitForFunction(() => document.querySelector("[data-scroll-guard-processed]"), null, { timeout: 30000 });
+    await quoteFeed.waitForTimeout(1000);
+    assert.deepEqual(quoteRequests, [{
+      post: "Quote check: movie night 🍿 with the team",
+      quoted_post: "Original take 🎬",
+      image_descriptions: ["A cinema hall full of people"]
+    }]);
+    await quoteFeed.close();
   }
   assert.equal(await feed.locator("[data-scroll-guard-host]").count(), 2, JSON.stringify(diagnostics));
   assert.match(await feed.locator("article").nth(1).locator("[data-scroll-guard-host]").evaluate((host) => host.shadowRoot.textContent), /Likely AI slop/);

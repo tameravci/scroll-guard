@@ -8,6 +8,7 @@ const {
   normalizeWhitespace,
   parseStatusHref,
   profileHandoffUrl,
+  readableText,
   validateHandle
 } = require("../src/x-adapter.js");
 
@@ -42,6 +43,21 @@ test("validates X handle syntax", () => {
 
 test("normalizes feed text while preserving meaningful paragraph breaks", () => {
   assert.equal(normalizeWhitespace("One   line\n\n\n\nTwo\twords"), "One line\n\nTwo words");
+});
+
+test("reads emoji from X's emoji images and keeps line breaks", () => {
+  const text = (value) => ({ nodeType: 3, nodeValue: value });
+  const tag = (tagName, attributes = {}, childNodes = []) =>
+    ({ nodeType: 1, tagName, childNodes, getAttribute: (name) => attributes[name] ?? null });
+  const element = tag("DIV", {}, [
+    tag("SPAN", {}, [text("Movie night ")]),
+    tag("IMG", { alt: "🍿" }),
+    tag("SPAN", {}, [text(" with  the team")]),
+    tag("BR"),
+    text("Next line")
+  ]);
+  assert.equal(readableText(element), "Movie night 🍿 with the team\nNext line");
+  assert.equal(readableText(null), "");
 });
 
 test("opens the exact native block item but never clicks X's final confirmation", async () => {

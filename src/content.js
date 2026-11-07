@@ -43,6 +43,11 @@
     }).catch(() => undefined);
   }
 
+  // Everything sent to Jev. A change in any part means a new decision.
+  function inputOf(parsed) {
+    return JSON.stringify([parsed.handle, parsed.statusId, parsed.text, parsed.quote, parsed.images]);
+  }
+
   function callbacksFor(parsed) {
     return {
       onBlock() {
@@ -82,7 +87,7 @@
   async function processPost(article, expectedGeneration) {
     const parsed = api.parsePost(article);
     if (!parsed || expectedGeneration !== generation || !settings?.enabled) return;
-    const input = JSON.stringify([parsed.handle, parsed.statusId, parsed.text]);
+    const input = inputOf(parsed);
     // X can reuse a card for another post while a remote decision is pending.
     if (postInputs.get(article) !== input) {
       postInputs.set(article, input);
@@ -96,8 +101,7 @@
     const current = () => {
       const latest = api.parsePost(article);
       return expectedGeneration === generation && settings?.enabled && article.isConnected &&
-        postInputs.get(article) === input && latest?.handle === parsed.handle &&
-        latest?.statusId === parsed.statusId && latest?.text === parsed.text;
+        postInputs.get(article) === input && latest && inputOf(latest) === input;
     };
     const alreadyProcessed =
       article.dataset.scrollGuardProcessed === String(expectedGeneration);
@@ -113,7 +117,7 @@
     article.dataset.scrollGuardPending = String(expectedGeneration);
 
     try {
-      const detection = await api.detectSlop(parsed.text, {
+      const detection = await api.detectSlop({ text: parsed.text, quote: parsed.quote, images: parsed.images }, {
         sensitivity: settings.sensitivity,
         verdicts: settings.verdicts
       });
@@ -196,7 +200,7 @@
   function needsCheck(article) {
     const parsed = api.parsePost(article);
     if (!parsed) return false;
-    const input = JSON.stringify([parsed.handle, parsed.statusId, parsed.text]);
+    const input = inputOf(parsed);
     if (postInputs.get(article) !== input) return true;
     const current = String(generation);
     if (article.dataset.scrollGuardPending === current) return false;

@@ -6,8 +6,11 @@ highlighting feature.
 ## Data processed
 
 While enabled on `x.com` or `twitter.com`, the extension reads the primary text,
-author handle, and status ID of posts rendered in the current page. Only the post
-text is included in the Jev request state. Text itself may contain personal information.
+author handle, and status ID of posts rendered in the current page. It also reads
+the text of a quoted post and the photo descriptions (alt text) that the author
+wrote. The Jev request contains only these three kinds of text: the post text, the
+quoted post text, and the photo descriptions. It contains no handles, names,
+images, or links to the post. Text itself may contain personal information.
 
 ## Data stored
 
@@ -32,7 +35,8 @@ and text hashes are cached in worker memory; full post text is not cached there.
 
 ## Data transmission
 
-The extension sends post text and its assessment rubric to
+The extension sends post text, quoted post text, photo descriptions, and its
+assessment rubric to
 `https://api.typesafe.ai/v1/systemone`, authenticated with your TypeSafe key.
 When you save a key, the extension first sends one test request with a fixed
 string ("Key check.") to check the key; it contains no post text.

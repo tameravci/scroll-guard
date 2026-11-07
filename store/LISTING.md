@@ -43,7 +43,7 @@ BRING YOUR OWN KEY
 Scroll Guard uses TypeSafe's Jev model. You paste your own Jev API key from console.typesafe.ai/keys, and TypeSafe bills your usage directly. There is no subscription and no account with us. A typical day of scrolling costs about 1–2 cents.
 
 PRIVATE BY DESIGN
-• Only the text of posts on or near your screen goes to TypeSafe for analysis.
+• Only the text of posts on or near your screen goes to TypeSafe for analysis, including quoted posts and the photo descriptions authors wrote. Photos themselves are never sent.
 • Your key stays on your device, in storage that pages on X cannot read.
 • No analytics, no tracking, and no servers of ours.
 • Open source: https://github.com/tameravci/scroll-guard
@@ -98,7 +98,7 @@ Scroll Guard flags AI slop, clickbait, bot spam, and scams in the user's X feed.
 
 **Data usage.** Check these:
 
-- **Website content**: the text of posts in the user's X feed, sent to TypeSafe for analysis.
+- **Website content**: the text of posts in the user's X feed, including quoted posts and the photo descriptions (alt text) authors wrote, sent to TypeSafe for analysis.
 - **Authentication information**: the user's own TypeSafe API key, sent only to TypeSafe to authenticate the user's requests.
 
 Leave everything else unchecked. Author handles and post fingerprints stay on the device and are never transmitted.

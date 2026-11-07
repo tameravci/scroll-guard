@@ -127,6 +127,16 @@ test("calls only official endpoint with bearer auth and post state", async () =>
   });
   assert.equal(jev.interpret(result).isSlop, true);
 });
+test("a quoted post and photo descriptions go to Jev as separate context fields", () => {
+  const state = jev.requestFor({ text: "My take 🍿", quote: "Their post", images: ["A crowded room"] }).state;
+  assert.deepEqual(state, { post: "My take 🍿", quoted_post: "Their post", image_descriptions: ["A crowded room"] });
+  assert.deepEqual(jev.requestFor({ text: "Only text", quote: "  ", images: [] }).state, { post: "Only text" });
+  assert.match(jev.requestFor("post").questions.slop.instructions, /quoted_post.*never judge its writing/);
+  assert.throws(() => jev.requestFor({ text: "post", quote: "x".repeat(20001) }));
+  assert.throws(() => jev.requestFor({ text: "post", images: ["a", "b", "c", "d", "e"] }));
+  assert.throws(() => jev.requestFor({ text: "post", images: ["x".repeat(1001)] }));
+  assert.throws(() => jev.requestFor({ text: "", quote: "Their post" }));
+});
 test("missing key, HTTP failure, and oversized posts reject without fallback", async () => {
   await assert.rejects(jev.evaluate("post", ""), /API key/);
   await assert.rejects(jev.evaluate("post", "key", async () => ({ ok: false, status: 429 })), /429/);
@@ -189,6 +199,19 @@ test("background rejects missing key, disabled detection and API failure without
   assert.equal(failed.error.includes("private provider details"), false);
   await bg.send("four");
   assert.equal(calls, 1);
+});
+test("background sends the quote and photo descriptions, and they are part of the cache key", async () => {
+  const seen = [];
+  const bg = worker(async (post) => { seen.push(post); return response(); });
+  const send = (message) => new Promise((resolve) => bg.listener({ type: "jev-evaluate", ...message }, { id: "extension", url: "https://x.com/home" }, resolve));
+  await send({ text: "same text", quote: "first quote", images: ["A crowded room"] });
+  await send({ text: "same text", quote: "second quote" });
+  assert.deepEqual(seen, [
+    { text: "same text", quote: "first quote", images: ["A crowded room"] },
+    { text: "same text", quote: "second quote" }
+  ]);
+  assert.ok((await send({ text: "post", images: "not a list" })).error);
+  assert.equal(seen.length, 2);
 });
 test("background ignores messages from other origins", () => {
   const bg = worker(async () => { throw new Error("must not call"); });

@@ -46,9 +46,49 @@
     );
   }
 
-  function primaryTextElement(article) {
+  // A quoted post is a link card inside the article with its own author line and text.
+  function quoteContainer(article) {
+    return [...article.querySelectorAll("div[role='link']")].find((card) =>
+      card.querySelector("[data-testid='User-Name']") && card.querySelector("[data-testid='tweetText']")
+    ) || null;
+  }
+
+  // The post's own text, never the quoted post's text.
+  function primaryTextElement(article, quote) {
     const candidates = [...article.querySelectorAll("[data-testid='tweetText']")];
-    return candidates[0] || null;
+    return candidates.find((candidate) => !quote?.contains(candidate)) || null;
+  }
+
+  // X draws each emoji as an image whose alt text is the emoji character, so
+  // textContent drops it. Read text nodes in order and put each emoji back.
+  function readableText(element) {
+    if (!element) return "";
+    let output = "";
+    const walk = (node) => {
+      for (const child of node.childNodes || []) {
+        if (child.nodeType === 3) {
+          output += child.nodeValue;
+        } else if (child.nodeType === 1) {
+          const tag = String(child.tagName).toUpperCase();
+          if (tag === "IMG") output += child.getAttribute("alt") || "";
+          else if (tag === "BR") output += "\n";
+          else walk(child);
+        }
+      }
+    };
+    walk(element);
+    return normalizeWhitespace(output);
+  }
+
+  // Descriptions the author wrote for the post's own photos. Without one, X fills
+  // in a one-word default such as "Image" in the reader's language. A one-word
+  // alt tells Jev nothing, so it is left out.
+  function photoDescriptions(article, quote) {
+    return [...article.querySelectorAll("[data-testid='tweetPhoto'] img")]
+      .filter((image) => !quote?.contains(image))
+      .map((image) => normalizeWhitespace(image.getAttribute("alt")).slice(0, 1000))
+      .filter((alt) => /\s/u.test(alt))
+      .slice(0, 4);
   }
 
   function parsePost(article) {
@@ -58,8 +98,9 @@
 
     const link = primaryStatusLink(article);
     const status = link ? parseStatusHref(link.getAttribute("href")) : null;
-    const textElement = primaryTextElement(article);
-    const text = normalizeWhitespace(textElement?.textContent);
+    const quote = quoteContainer(article);
+    const textElement = primaryTextElement(article, quote);
+    const text = readableText(textElement);
 
     if (!status?.handle || !text) {
       return null;
@@ -76,6 +117,8 @@
       statusId: status.statusId,
       statusUrl: status.url,
       text,
+      quote: readableText(quote?.querySelector("[data-testid='tweetText']")),
+      images: photoDescriptions(article, quote),
       textElement
     };
   }
@@ -206,6 +249,7 @@
     openBlockHandoff,
     parsePost,
     parseStatusHref,
+    readableText,
     profileHandoffUrl,
     validateHandle
   };

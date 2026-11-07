@@ -41,10 +41,10 @@ function schedule(run) {
   });
 }
 
-async function evaluateText(text, key) {
+async function evaluatePost(post, key) {
   if (Date.now() < cooldownUntil) throw retryLater("Jev is paused after a failed request.");
   try {
-    return await JevDetector.evaluate(text, key);
+    return await JevDetector.evaluate(post, key);
   } catch (error) {
     if (error.status === 401 || error.status === 403) {
       const rejected = new Error("Jev rejected the API key. Check it from the toolbar icon.");
@@ -59,7 +59,7 @@ async function evaluateText(text, key) {
   }
 }
 
-async function decide(message) {
+async function decide(message, post) {
   const stored = await chrome.storage.local.get("slopSpotterStateV1");
   if (stored.slopSpotterStateV1?.settings?.enabled === false) throw new Error("Detection is disabled.");
   const jevApiKey = await JevKeyStore.get();
@@ -68,14 +68,14 @@ async function decide(message) {
     missing.visible = true;
     throw missing;
   }
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(message.text));
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify(post)));
   const id = Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
   let result = cache.get(id);
   if (!result) {
     // Identical posts share one request, whether it is running or waiting.
     // The entry clears when the request settles, including a dropped wait.
     if (!inFlight.has(id)) {
-      const request = schedule(() => evaluateText(message.text, jevApiKey));
+      const request = schedule(() => evaluatePost(post, jevApiKey));
       const clear = () => { if (inFlight.get(id) === request) inFlight.delete(id); };
       request.then(clear, clear);
       inFlight.set(id, request);
@@ -110,10 +110,13 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
   }
   if (message?.type !== "jev-evaluate") return;
   if (!/^https:\/\/(?:x|twitter)\.com\//u.test(sender.url || "")) return;
-  if (typeof message.text !== "string" || !message.text.trim() || message.text.length > 20000) {
-    respond({ error: "Post must contain 1–20,000 characters." }); return;
+  let post;
+  try {
+    post = JevDetector.normalizePost({ text: message.text, quote: message.quote, images: message.images });
+  } catch (error) {
+    respond({ error: error.message }); return;
   }
-  decide(message).then(
+  decide(message, post).then(
     (detection) => respond({ detection }),
     (error) => respond({
       // Only messages written here reach the page; provider details stay in the worker.

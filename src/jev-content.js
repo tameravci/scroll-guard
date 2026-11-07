@@ -1,6 +1,7 @@
 globalThis.ScrollGuard = Object.assign(globalThis.ScrollGuard || {}, {
-  async detectSlop(text, options = {}) {
-    const response = await chrome.runtime.sendMessage({ type: "jev-evaluate", text, sensitivity: options.sensitivity, verdicts: options.verdicts });
+  async detectSlop(post, options = {}) {
+    const { text, quote, images } = typeof post === "string" ? { text: post } : post;
+    const response = await chrome.runtime.sendMessage({ type: "jev-evaluate", text, quote, images, sensitivity: options.sensitivity, verdicts: options.verdicts });
     if (!response?.detection) {
       const error = new Error(response?.error || "Jev background worker unavailable.");
       error.retryable = response?.retryable === true;
