@@ -72,8 +72,8 @@ and clickbait.
 ## Using it
 
 The toolbar popup holds the on/off switch, the verdict types to flag (slop, shilling,
-clickbait, bot spam, scam), and the strictness: Fewer (90%), Balanced (75%), More (60%),
-or Custom, where you type your own threshold from 20% to 99%. Unchecking the last type pauses the extension;
+clickbait, bot spam, scam), and the strictness: a threshold from 20% to 99%, 50% by
+default. A post is flagged when Jev rates it at the threshold or higher. Unchecking the last type pauses the extension;
 checking one again, or turning the switch on, resumes it. Until a key is saved, the
 icon shows a `!` badge and the popup asks for the key. The setup page also holds the
 privacy summary and the button that clears local history.

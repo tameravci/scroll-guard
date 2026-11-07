@@ -8,23 +8,23 @@ function response(probability = 0.8) {
   } };
 }
 test("Jev probability thresholds differ from model confidence", () => {
-  assert.equal(jev.interpret(response(), "balanced").isSlop, true);
-  assert.equal(jev.interpret(response(), "conservative").isSlop, false);
-  assert.equal(jev.interpret(response(0.65), "sensitive").isSlop, true);
+  assert.equal(jev.interpret(response(), 75).isSlop, true);
+  assert.equal(jev.interpret(response(), 90).isSlop, false);
+  assert.equal(jev.interpret(response(0.65), 60).isSlop, true);
 });
 test("every flagged slop or scam post can be blocked, and only at the chosen sensitivity", () => {
   for (const verdict of ["slop", "scam", "bot", "shill", "clickbait"]) {
     const data = response(0.6);
     data.answers.slop.choice = verdict;
     data.answers.slop.probabilities = { slop: 0, scam: 0, bot: 0, shill: 0, clickbait: 0, not_slop: 0.4, uncertain: 0, [verdict]: 0.6 };
-    const sensitive = jev.interpret(data, "sensitive");
+    const sensitive = jev.interpret(data, 60);
     assert.equal(sensitive.isFlagged, true);
     assert.equal(sensitive.canBlock, true);
-    const balanced = jev.interpret(data, "balanced");
+    const balanced = jev.interpret(data, 75);
     assert.equal(balanced.isFlagged, false);
     assert.equal(balanced.canBlock, false);
   }
-  assert.equal(jev.interpret(response(0.85), "conservative").isFlagged, false);
+  assert.equal(jev.interpret(response(0.85), 90).isFlagged, false);
   const clean = response(0);
   clean.answers.slop.choice = "not_slop";
   assert.equal(jev.interpret(clean).canBlock, false);
@@ -59,7 +59,7 @@ test("clickbait flags carry their own label, can be turned off, and news is excl
   assert.equal(result.isSlop, false);
   assert.equal(result.canBlock, true);
   assert.deepEqual(result.families, ["jev-clickbait"]);
-  const off = jev.interpret(data, "balanced", { verdicts: { slop: true, clickbait: false, bot: true, scam: true } });
+  const off = jev.interpret(data, 75, { verdicts: { slop: true, clickbait: false, bot: true, scam: true } });
   assert.equal(off.isFlagged, false);
   assert.equal(off.canBlock, false);
   const body = jev.requestFor("post");
@@ -75,9 +75,9 @@ test("each verdict can be turned off on its own", () => {
     const data = response(0.95);
     data.answers.slop.choice = verdict;
     data.answers.slop.probabilities = { slop: 0, scam: 0, bot: 0, shill: 0, clickbait: 0, not_slop: 0.05, uncertain: 0, [verdict]: 0.95 };
-    assert.equal(jev.interpret(data, "balanced", { verdicts: { [verdict]: false } }).isFlagged, false);
-    assert.equal(jev.interpret(data, "balanced", { verdicts: { [verdict]: true } }).isFlagged, true);
-    assert.equal(jev.interpret(data, "balanced").isFlagged, true);
+    assert.equal(jev.interpret(data, 75, { verdicts: { [verdict]: false } }).isFlagged, false);
+    assert.equal(jev.interpret(data, 75, { verdicts: { [verdict]: true } }).isFlagged, true);
+    assert.equal(jev.interpret(data, 75).isFlagged, true);
   }
 });
 test("slop means AI-written text and names the strongest pattern as evidence", () => {
@@ -102,7 +102,7 @@ test("shill flags undisclosed promotion, ranks below bot, and can be turned off"
   assert.equal(result.canBlock, true);
   assert.deepEqual(result.families, ["jev-shill"]);
   assert.match(result.evidence[0].fix, /paid or incentivized promotion/);
-  assert.equal(jev.interpret(data, "balanced", { verdicts: { shill: false } }).isFlagged, false);
+  assert.equal(jev.interpret(data, 75, { verdicts: { shill: false } }).isFlagged, false);
   const body = jev.requestFor("post");
   assert.match(body.questions.slop.criteria.bot, /priority over shill, clickbait, and slop/);
   assert.match(body.questions.slop.criteria.shill, /priority over clickbait and slop/);
@@ -116,12 +116,15 @@ test("a slop verdict whose category is another verdict type still counts as slop
     assert.deepEqual(jev.interpret(data).families, ["jev-slop"], category);
   }
 });
-test("an exact threshold in percent works like a preset", () => {
+test("the threshold is a percentage, 50% by default", () => {
   assert.equal(jev.interpret(response(0.82), 82).isSlop, true);
   assert.equal(jev.interpret(response(0.81), 82).isSlop, false);
   assert.equal(jev.interpret(response(0.3), 25).isSlop, true);
-  // Out of range falls back to Balanced (75%).
-  assert.equal(jev.interpret(response(0.7), 5).isSlop, false);
+  // No threshold, or one out of range, falls back to the 50% default.
+  assert.equal(jev.interpret(response(0.5)).isSlop, true);
+  assert.equal(jev.interpret(response(0.49)).isSlop, false);
+  assert.equal(jev.interpret(response(0.45), 5).isSlop, false);
+  assert.equal(jev.interpret(response(0.55), "balanced").isSlop, true);
 });
 test("the parent post goes to Jev as reply context", () => {
   const state = jev.requestFor({ text: "Great point!", parent: "Our protocol launches today." }).state;
@@ -147,7 +150,7 @@ test("scam flags use the scam probability and retain a distinct label", () => {
   assert.equal(result.isSlop, false);
   assert.equal(result.probability, 0.8);
   assert.deepEqual(result.families, ["jev-scam"]);
-  assert.equal(jev.interpret(data, "conservative").isFlagged, false);
+  assert.equal(jev.interpret(data, 90).isFlagged, false);
   delete data.answers.slop.probabilities.scam;
   assert.throws(() => jev.interpret(data));
 });
@@ -204,7 +207,7 @@ function worker(evaluate) {
   vm.runInNewContext(fs.readFileSync(require.resolve("../src/background.js"), "utf8"), context);
   return {
     state,
-    send(text, sensitivity = "balanced") {
+    send(text, sensitivity = 75) {
       return new Promise((resolve) => listener({ type: "jev-evaluate", text, sensitivity }, { id: "extension", url: "https://x.com/home" }, resolve));
     },
     listener
@@ -213,7 +216,7 @@ function worker(evaluate) {
 test("background serializes duplicate requests and reuses verdict across sensitivity changes", async () => {
   let calls = 0;
   const bg = worker(async () => { calls += 1; return response(); });
-  const results = await Promise.all([bg.send("same post"), bg.send("same post", "conservative")]);
+  const results = await Promise.all([bg.send("same post"), bg.send("same post", 90)]);
   assert.equal(calls, 1);
   assert.equal(results[0].detection.isSlop, true);
   assert.equal(results[1].detection.isSlop, false);

@@ -105,7 +105,7 @@
       keys.every((key) => unit(answer.probabilities?.[key])) &&
       Math.abs(keys.reduce((sum, key) => sum + answer.probabilities[key], 0) - 1) < 0.02;
   }
-  function interpret(response, sensitivity = "balanced", options = {}) {
+  function interpret(response, sensitivity = 50, options = {}) {
     const answer = response?.answers?.slop;
     const category = response?.answers?.category;
     if (!validAnswer(answer, ["slop", "scam", "bot", "shill", "clickbait", "not_slop", "uncertain"]) ||
@@ -114,10 +114,10 @@
       error.invalidResponse = true;
       throw error;
     }
-    // A preset name, or the exact threshold in percent that the user typed.
+    // The user's threshold in percent. Anything else falls back to the 50% default.
     const threshold = Number.isInteger(sensitivity) && sensitivity >= 20 && sensitivity <= 99
       ? sensitivity / 100
-      : { conservative: 0.9, balanced: 0.75, sensitive: 0.6 }[sensitivity] ?? 0.75;
+      : 0.5;
     const probability = answer.probabilities[answer.choice];
     // Verdicts the user turned off never flag. Missing settings mean every verdict is on.
     const wanted = (verdict) => options.verdicts?.[verdict] !== false;

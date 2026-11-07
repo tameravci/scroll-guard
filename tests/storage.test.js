@@ -35,8 +35,8 @@ test("normalizes handles without accepting display decoration", () => {
   assert.equal(normalizeHandle("@Example_User"), "example_user");
 });
 
-test("uses balanced detection as the recommended default", () => {
-  assert.equal(DEFAULT_SETTINGS.sensitivity, "balanced");
+test("strictness defaults to a 50% threshold", () => {
+  assert.equal(DEFAULT_SETTINGS.sensitivity, 50);
 });
 
 test("records concurrent feed observations immediately and deduplicates posts", async () => {
@@ -149,12 +149,27 @@ test("local repeat flags count as bot spam and shill flags count separately", as
   assert.equal(recent.byVerdict.shill, 1);
 });
 
-test("strictness takes a preset or an exact threshold from 20 to 99 percent", async () => {
+test("strictness takes a whole-number threshold from 20 to 99 percent", async () => {
   const { updateSettings, getSettings } = require("../src/storage.js");
   assert.equal((await updateSettings({ sensitivity: 82 })).sensitivity, 82);
-  for (const bad of [19, 100, 82.5, "82", "loose"]) {
+  for (const bad of [19, 100, 82.5, "82", "balanced", "loose"]) {
     assert.equal((await updateSettings({ sensitivity: bad })).sensitivity, 82, String(bad));
   }
-  assert.equal((await updateSettings({ sensitivity: "sensitive" })).sensitivity, "sensitive");
-  assert.equal((await getSettings()).sensitivity, "sensitive");
+  assert.equal((await getSettings()).sensitivity, 82);
+});
+
+test("saved presets from older versions become thresholds", async () => {
+  const path = require.resolve("../src/storage.js");
+  for (const [preset, expected] of [["conservative", 90], ["balanced", 50], ["sensitive", 60], ["unknown", 50]]) {
+    delete require.cache[path];
+    const saved = { slopSpotterStateV1: { schemaVersion: 2, salt: "s", accounts: {}, settings: { enabled: true, sensitivity: preset } } };
+    global.chrome = { storage: { local: { get: async (key) => ({ [key]: saved[key] }), set: async () => undefined } } };
+    try {
+      const fresh = require("../src/storage.js");
+      assert.equal((await fresh.getSettings()).sensitivity, expected, preset);
+    } finally {
+      delete global.chrome;
+      delete require.cache[path];
+    }
+  }
 });

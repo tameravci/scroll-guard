@@ -20,14 +20,13 @@
   // "gm" or "Good morning" from many accounts is normal.
   const REPEAT_MIN_WORDS = 8;
   const ONE_DAY_MS = 24 * 60 * 60 * 1000;
-  const PRESETS = ["conservative", "balanced", "sensitive"];
-  // Strictness is a preset name or an exact threshold in percent.
-  const validSensitivity = (value) =>
-    PRESETS.includes(value) || (Number.isInteger(value) && value >= 20 && value <= 99);
+  // Strictness is a threshold in percent. Older versions saved a preset name.
+  const LEGACY_PRESETS = Object.freeze({ conservative: 90, balanced: 50, sensitive: 60 });
+  const validSensitivity = (value) => Number.isInteger(value) && value >= 20 && value <= 99;
 
   const DEFAULT_SETTINGS = Object.freeze({
     enabled: true,
-    sensitivity: "balanced",
+    sensitivity: 50,
     verdicts: Object.freeze({ slop: true, clickbait: true, bot: true, shill: true, scam: true })
   });
 
@@ -92,10 +91,13 @@
     settings.verdicts = normalizeVerdicts(settings.verdicts, settings);
     enforceActive(settings);
     RETIRED_SETTINGS.forEach((key) => delete settings[key]);
-    if (!validSensitivity(settings.sensitivity)) settings.sensitivity = "balanced";
+    // Fewer and More keep their thresholds. Balanced was the default, so it takes
+    // the new 50% default.
     if (Number(candidate.schemaVersion || 0) < 2 && settings.sensitivity === "conservative") {
       settings.sensitivity = "balanced";
     }
+    if (settings.sensitivity in LEGACY_PRESETS) settings.sensitivity = LEGACY_PRESETS[settings.sensitivity];
+    if (!validSensitivity(settings.sensitivity)) settings.sensitivity = DEFAULT_SETTINGS.sensitivity;
     return {
       schemaVersion: 2,
       salt: typeof candidate.salt === "string" && candidate.salt ? candidate.salt : randomSalt(),

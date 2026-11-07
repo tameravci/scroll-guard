@@ -163,10 +163,17 @@ try {
   if (!live) assert.equal(keyChecks, 2, "Saving must test the key with Jev first");
   if (!live) {
     await options.bringToFront();
-    await options.locator(".segment", { hasText: "Fewer" }).click({ force: true });
+    // Strictness starts at 50%. A typed value out of range is clamped to 99%.
+    const threshold = options.locator(".threshold input");
+    assert.equal(await threshold.inputValue(), "50");
+    await threshold.fill("150");
+    await threshold.press("Tab");
+    assert.equal(await threshold.inputValue(), "99");
+    await threshold.fill("90");
+    await threshold.press("Tab");
     await options.waitForFunction(async () => {
       const { slopSpotterStateV1: state } = await chrome.storage.local.get("slopSpotterStateV1");
-      return state?.settings.sensitivity === "conservative";
+      return state?.settings.sensitivity === 90;
     }, null, { polling: 100 });
   }
   await feed.reload();

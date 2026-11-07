@@ -37,7 +37,7 @@ Plain news, personal updates, jokes, and excited reactions are not flagged.
 
 YOU CONTROL IT
 • Turn each type on or off.
-• Choose how strict it is: Fewer (90%), Balanced (75%), More (60%), or your own threshold from 20% to 99%.
+• Choose how strict it is: set the threshold from 20% to 99%. It starts at 50%.
 • See how many posts it checked and flagged in the last 24 hours.
 
 BRING YOUR OWN KEY

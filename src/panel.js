@@ -9,14 +9,8 @@
     { key: "shill", label: "Shilling", hint: "Undisclosed paid promotion" },
     { key: "scam", label: "Scam", hint: "Fraud, phishing, fake giveaways" }
   ];
-  const LEVELS = [
-    { value: "conservative", label: "Fewer", threshold: 90 },
-    { value: "balanced", label: "Balanced", threshold: 75 },
-    { value: "sensitive", label: "More", threshold: 60 },
-    { value: "custom", label: "Custom" }
-  ];
-  const CUSTOM_MIN = 20;
-  const CUSTOM_MAX = 99;
+  const THRESHOLD_MIN = 20;
+  const THRESHOLD_MAX = 99;
 
   function node(tag, className, text) {
     const element = root.document.createElement(tag);
@@ -77,57 +71,33 @@
     const copy = node("div", "row-text");
     const hint = node("span", "row-hint");
     copy.append(node("span", "row-label", "Strictness"), hint);
-    const segmented = node("div", "segmented");
-    segmented.setAttribute("role", "radiogroup");
-    segmented.setAttribute("aria-label", "Strictness");
-    // The setting is a preset name or an exact threshold in percent.
-    const thresholdOf = (value) =>
-      Number.isInteger(value) ? value : (LEVELS.find((item) => item.value === value) || LEVELS[1]).threshold;
-    const describe = (value) => {
-      hint.textContent = `Flags posts Jev rates ${thresholdOf(value)}% or higher`;
-    };
-    const custom = node("label", "custom-threshold");
+    // Strictness is one number: the lowest Jev probability, in percent, that flags.
+    const field = node("label", "threshold");
     const number = node("input", "text-input");
     number.type = "number";
-    number.min = String(CUSTOM_MIN);
-    number.max = String(CUSTOM_MAX);
+    number.min = String(THRESHOLD_MIN);
+    number.max = String(THRESHOLD_MAX);
     number.step = "1";
     number.inputMode = "numeric";
-    number.value = String(thresholdOf(settings.sensitivity));
-    custom.append(node("span", "", "Threshold"), number, node("span", "", "%"));
-    custom.hidden = !Number.isInteger(settings.sensitivity);
-    const saveCustom = async () => {
-      const value = Math.min(CUSTOM_MAX, Math.max(CUSTOM_MIN, Math.round(Number(number.value) || thresholdOf("balanced"))));
+    number.setAttribute("aria-label", "Strictness threshold in percent");
+    number.value = String(settings.sensitivity);
+    field.append(number, node("span", "", "%"));
+    const describe = (value) => {
+      hint.textContent = `Flags posts Jev rates ${value}% or higher`;
+    };
+    number.addEventListener("change", async () => {
+      const typed = Math.round(Number(number.value));
+      const value = Number.isFinite(typed) && number.value !== ""
+        ? Math.min(THRESHOLD_MAX, Math.max(THRESHOLD_MIN, typed))
+        : settings.sensitivity;
       number.value = String(value);
       describe(value);
+      settings.sensitivity = value;
       await api.updateSettings({ sensitivity: value });
       saved();
-    };
-    number.addEventListener("change", saveCustom);
-    LEVELS.forEach(({ value, label }) => {
-      const option = node("label", "segment");
-      const input = node("input");
-      input.type = "radio";
-      input.name = "sensitivity";
-      input.value = value;
-      input.checked = value === "custom" ? Number.isInteger(settings.sensitivity) : settings.sensitivity === value;
-      input.addEventListener("change", async () => {
-        custom.hidden = value !== "custom";
-        if (value === "custom") {
-          await saveCustom();
-          number.focus();
-          return;
-        }
-        number.value = String(thresholdOf(value));
-        describe(value);
-        await api.updateSettings({ sensitivity: value });
-        saved();
-      });
-      option.append(input, node("span", "", label));
-      segmented.append(option);
     });
     describe(settings.sensitivity);
-    strictness.append(copy, segmented, custom);
+    strictness.append(copy, field);
 
     container.replaceChildren(section, strictness);
     return {
@@ -160,5 +130,5 @@
     return update;
   }
 
-  root.ScrollGuardPanel = { VERDICTS, LEVELS, mount, attachKeyTail };
+  root.ScrollGuardPanel = { VERDICTS, mount, attachKeyTail };
 })(globalThis);
