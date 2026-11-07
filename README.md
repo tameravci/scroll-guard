@@ -38,23 +38,28 @@ Your browser sends each post straight to Jev.
 
 ## What it costs, compared with Pangram
 
-[Pangram](https://www.pangram.com/pricing)'s Individual plan costs $20 a month for
-300,000 words, including feed scanning. This extension pays Jev per post instead.
+Pangram's browser extension scans your X feed automatically only on a paid plan. The
+cheapest one, [Individual](https://www.pangram.com/pricing), costs $20 a month ($15 a
+month billed yearly) for 300,000 words. The free plan checks one post at a time. Scroll
+Guard pays Jev for each post it checks.
 
 |  | Pangram Individual | Scroll Guard on Jev |
 |---|---|---|
 | Price | $20/month, flat | Pay per use, about $0.00008 per post |
-| Posts for $20 | about 6,000–20,000 | about 246,000 |
+| Posts for $20 | about 6,000–20,000 | about 245,000 |
 | Average user (150–300 posts/day) | $20/month | about $0.40–$0.75/month |
-| Heavy user (about 1,200 posts/day) | may exceed the 300,000-word cap | about $2.90/month |
+| Heavy user (about 1,200 posts/day) | over the 300,000-word cap; Professional costs $65/month for 1.5 million words | about $2.90/month |
 
-How we got these numbers:
+How we got these numbers (checked November 2026):
 
-- One Jev request for one post used 1,930 input tokens (measured). At $0.042 per
-  million input tokens with free output, as reported at Jev's launch, one post costs
-  about $0.000081. TypeSafe has no official pricing page yet, so check your console.
-- Pangram meters words. The post counts assume 15–50 words per post.
+- TypeSafe [lists Jev](https://docs.typesafe.ai/models) at $0.042 per million input
+  tokens. Output tokens are free.
+- On Jev 1.14, one post used 1,918 to 1,961 input tokens (measured). Most of that is
+  the rubric, so short and long posts cost about the same: $0.00008 each.
+- Pangram meters words. The post counts assume 15–50 words per post. Pangram does not
+  say if its feed scans count against the word cap.
 - Daily post counts assume about 30 minutes a day on X at 5–10 posts a minute.
+- Prices change. Check both pricing pages before you rely on these numbers.
 
 **It is not a drop-in Pangram replacement.** Pangram runs a classifier trained to
 detect AI-written text and publishes accuracy benchmarks. Scroll Guard asks a general
