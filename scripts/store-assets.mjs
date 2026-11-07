@@ -42,11 +42,11 @@ const feed = `<!doctype html><html><head><meta charset="utf-8"><style>
   </div></article>`).join("")}</main></body></html>`;
 
 function answer(post) {
-  const choices = ["slop", "scam", "bot", "clickbait", "not_slop", "uncertain"];
+  const choices = ["slop", "scam", "bot", "shill", "clickbait", "not_slop", "uncertain"];
   const probabilities = Object.fromEntries(choices.map((key) => [key, 0]));
   probabilities[post.verdict] = post.p;
   probabilities[post.verdict === "not_slop" ? "uncertain" : "not_slop"] = Number((1 - post.p).toFixed(2));
-  const categories = ["contrast", "setup", "colon_reveal", "puffery", "buzzwords", "cadence", "formatting", "scam", "clickbait", "bot", "none"];
+  const categories = ["contrast", "setup", "colon_reveal", "puffery", "buzzwords", "cadence", "formatting", "scam", "clickbait", "bot", "shill", "none"];
   const categoryProbabilities = Object.fromEntries(categories.map((key) => [key, key === post.category ? 1 : 0]));
   return {
     model: "jev-demo",

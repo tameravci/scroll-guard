@@ -17,33 +17,34 @@ Upload `artifacts/scroll-guard-0.3.0.zip`. Build it with `npm run package`.
 
 **Summary** (comes from the manifest, 132 characters maximum):
 
-> Flags AI slop, clickbait, bot spam, and scams in your X feed with TypeSafe Jev. Bring your own key.
+> Flags AI slop, shilling, clickbait, bot spam, and scams in your X feed with TypeSafe Jev. Bring your own key.
 
 **Description:**
 
 ```
-Scroll Guard flags AI slop, clickbait, bot spam, and scams in your X feed as you scroll.
+Scroll Guard flags AI slop, shilling, clickbait, bot spam, and scams in your X feed as you scroll.
 
 Each flagged post gets a colored frame and a short verdict. Open the verdict to see why: for AI slop, Scroll Guard names the strongest AI-writing pattern it found, such as a binary contrast ("It's not X. It's Y.") or a fake-profound kicker ("Let that sink in."). Every flagged post also gets a Block button that opens X's own confirmation. Nothing is ever blocked automatically.
 
 WHAT IT FLAGS
 • AI slop: posts that read as AI-written
 • Clickbait: framing built for clicks, such as "JUST IN: Study reveals…"
-• Bot spam: copy-paste replies, link drops, and keyword stuffing
+• Shilling: posts that read as undisclosed paid promotion of a token, project, or product
+• Bot spam: copy-paste posts, reply farming, link drops, and keyword stuffing. Text that one account repeats, or that several accounts post word for word, is caught on your device without an API call.
 • Scams: fake giveaways, phishing, and requests for wallet recovery phrases
 
 Plain news, personal updates, jokes, and excited reactions are not flagged.
 
 YOU CONTROL IT
 • Turn each type on or off.
-• Choose how strict it is: Fewer, Balanced, or More.
+• Choose how strict it is: Fewer (90%), Balanced (75%), More (60%), or your own threshold from 20% to 99%.
 • See how many posts it checked and flagged in the last 24 hours.
 
 BRING YOUR OWN KEY
 Scroll Guard uses TypeSafe's Jev model. You paste your own Jev API key from console.typesafe.ai/keys, and TypeSafe bills your usage directly. There is no subscription and no account with us. A typical day of scrolling costs about 1–2 cents.
 
 PRIVATE BY DESIGN
-• Only the text of posts on or near your screen goes to TypeSafe for analysis, including quoted posts and the photo descriptions authors wrote. Photos themselves are never sent.
+• Only the text of posts on or near your screen goes to TypeSafe for analysis, including the post a reply answers, quoted posts, and the photo descriptions authors wrote. Photos themselves are never sent.
 • Your key stays on your device, in storage that pages on X cannot read.
 • No analytics, no tracking, and no servers of ours.
 • Open source: https://github.com/tameravci/scroll-guard
@@ -83,7 +84,7 @@ Scroll Guard is not affiliated with X Corp. or TypeSafe.
 **Single purpose:**
 
 ```
-Scroll Guard flags AI slop, clickbait, bot spam, and scams in the user's X feed. It sends the text of posts on the user's screen to the TypeSafe Jev API, using the user's own API key, and marks flagged posts with a frame, a verdict, and a Block button.
+Scroll Guard flags AI slop, shilling, clickbait, bot spam, and scams in the user's X feed. It sends the text of posts on the user's screen to the TypeSafe Jev API, using the user's own API key, and marks flagged posts with a frame, a verdict, and a Block button.
 ```
 
 **Permission justifications:**
@@ -98,7 +99,7 @@ Scroll Guard flags AI slop, clickbait, bot spam, and scams in the user's X feed.
 
 **Data usage.** Check these:
 
-- **Website content**: the text of posts in the user's X feed, including quoted posts and the photo descriptions (alt text) authors wrote, sent to TypeSafe for analysis.
+- **Website content**: the text of posts in the user's X feed, including the post a reply answers, quoted posts, and the photo descriptions (alt text) authors wrote, sent to TypeSafe for analysis.
 - **Authentication information**: the user's own TypeSafe API key, sent only to TypeSafe to authenticate the user's requests.
 
 Leave everything else unchecked. Author handles and post fingerprints stay on the device and are never transmitted.
@@ -126,7 +127,7 @@ Scroll Guard needs a TypeSafe Jev API key. A test key with a small budget:
 1. Install the extension. The setup page opens.
 2. Paste the key and click "Save key". The extension tests it and shows "Key saved".
 3. Open https://x.com/home while signed in to X, and scroll.
-4. Posts that read as AI-written, clickbait, bot spam, or scams get a colored frame and a verdict card. Click a verdict to see the reason. The Block button opens X's own block confirmation; the extension never blocks automatically.
+4. Posts that read as AI-written, shilling, clickbait, bot spam, or scams get a colored frame and a verdict card. Click a verdict to see the reason. The Block button opens X's own block confirmation; the extension never blocks automatically.
 5. Click the toolbar icon to turn verdict types on or off and change strictness.
 ```
 

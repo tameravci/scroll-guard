@@ -46,6 +46,10 @@
       --ss-amber: #2dd4bf;
       --ss-amber-soft: rgba(45, 212, 191, 0.10);
     }
+    :host([data-scroll-guard-verdict="shill"]) {
+      --ss-amber: #5b9cff;
+      --ss-amber-soft: rgba(91, 156, 255, 0.10);
+    }
     * { box-sizing: border-box; }
     .card {
       background: #17191b;
@@ -135,6 +139,8 @@
     :host([data-scroll-guard-verdict="bot"]) .block:hover { background: var(--ss-amber); }
     :host([data-scroll-guard-verdict="clickbait"]) .block { background: #d9f7f1; }
     :host([data-scroll-guard-verdict="clickbait"]) .block:hover { background: var(--ss-amber); }
+    :host([data-scroll-guard-verdict="shill"]) .block { background: #dde9ff; }
+    :host([data-scroll-guard-verdict="shill"]) .block:hover { background: var(--ss-amber); }
     .status { font-size: 12px; margin: 8px 0 0; opacity: 0.75; }
     .card > .status { margin: 0; padding: 0 14px 10px; }
     .card > .status:empty { display: none; }
@@ -267,8 +273,8 @@
 
     const host = element("div");
     host.setAttribute(HOST_ATTRIBUTE, "");
-    const { isScam, isBot, isClickbait } = payload.detection;
-    const verdict = isScam ? "scam" : isBot ? "bot" : isClickbait ? "clickbait" : "slop";
+    const { isScam, isBot, isShill, isClickbait } = payload.detection;
+    const verdict = isScam ? "scam" : isBot ? "bot" : isShill ? "shill" : isClickbait ? "clickbait" : "slop";
     host.dataset.scrollGuardVerdict = verdict;
     host.dataset.scrollGuardHandle = payload.parsed.handle.toLowerCase();
     host.addEventListener("click", (event) => event.stopPropagation());
@@ -278,17 +284,22 @@
     const style = element("style", "", CARD_STYLES);
     const card = element("aside", "card");
     card.setAttribute("aria-label", "Scroll Guard finding");
-    const verdictLabel = { scam: "Possible scam", bot: "Likely bot spam", clickbait: "Likely clickbait", slop: "Likely AI slop" }[verdict];
-    const percent = Math.round(payload.detection.probability * 100);
+    const verdictLabel = { scam: "Possible scam", bot: "Likely bot spam", shill: "Likely shilling", clickbait: "Likely clickbait", slop: "Likely AI slop" }[verdict];
+    // A repeat found on this device has no Jev probability; it shows "Repeat" instead.
+    const local = typeof payload.detection.probability !== "number";
+    const percent = local ? null : Math.round(payload.detection.probability * 100);
+    const score = local ? "Repeat" : `${percent}%`;
     const summary = element("button", "summary");
     summary.type = "button";
     summary.title = "Scroll Guard: view Jev assessment";
-    summary.setAttribute("aria-label", `Scroll Guard: ${verdictLabel}, ${percent}% probability. View Jev assessment`);
+    summary.setAttribute("aria-label", local
+      ? `Scroll Guard: ${verdictLabel}, repeated text. View details`
+      : `Scroll Guard: ${verdictLabel}, ${percent}% probability. View Jev assessment`);
     summary.setAttribute("aria-expanded", "false");
     summary.setAttribute("aria-controls", "finding-details");
     const mark = element("span", "mark");
     mark.setAttribute("aria-hidden", "true");
-    summary.append(mark, element("span", "verdict", verdictLabel), element("span", "percent", `${percent}%`), chevronIcon());
+    summary.append(mark, element("span", "verdict", verdictLabel), element("span", "percent", score), chevronIcon());
     const bar = element("div", "bar");
     bar.append(summary);
 
@@ -302,7 +313,10 @@
       "disclaimer",
       {
         scam: "This is a model assessment, not verification of the account or linked website.",
-        bot: "This is a model assessment. Jev cannot confirm that a bot runs this account.",
+        bot: local
+          ? "Based on text repeated in posts seen on this device. Some people repost their own words."
+          : "This is a model assessment. Jev cannot confirm that a bot runs this account.",
+        shill: "This is a model assessment of the writing. Jev cannot see whether the author was paid.",
         clickbait: "This is a model assessment of the framing. Jev has not fact-checked the claim.",
         slop: "Based on AI-writing patterns in the text. This is not proof of who wrote the post."
       }[verdict]

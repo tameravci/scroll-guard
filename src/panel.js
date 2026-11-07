@@ -5,14 +5,18 @@
   const VERDICTS = [
     { key: "slop", label: "AI slop", hint: "Reads as AI-written" },
     { key: "clickbait", label: "Clickbait", hint: "Framing built for clicks" },
-    { key: "bot", label: "Bot spam", hint: "Automated or mass-posted" },
+    { key: "bot", label: "Bot spam", hint: "Automated, copy-paste, or reply farming" },
+    { key: "shill", label: "Shilling", hint: "Undisclosed paid promotion" },
     { key: "scam", label: "Scam", hint: "Fraud, phishing, fake giveaways" }
   ];
   const LEVELS = [
     { value: "conservative", label: "Fewer", threshold: 90 },
     { value: "balanced", label: "Balanced", threshold: 75 },
-    { value: "sensitive", label: "More", threshold: 60 }
+    { value: "sensitive", label: "More", threshold: 60 },
+    { value: "custom", label: "Custom" }
   ];
+  const CUSTOM_MIN = 20;
+  const CUSTOM_MAX = 99;
 
   function node(tag, className, text) {
     const element = root.document.createElement(tag);
@@ -76,18 +80,45 @@
     const segmented = node("div", "segmented");
     segmented.setAttribute("role", "radiogroup");
     segmented.setAttribute("aria-label", "Strictness");
+    // The setting is a preset name or an exact threshold in percent.
+    const thresholdOf = (value) =>
+      Number.isInteger(value) ? value : (LEVELS.find((item) => item.value === value) || LEVELS[1]).threshold;
     const describe = (value) => {
-      const level = LEVELS.find((item) => item.value === value) || LEVELS[1];
-      hint.textContent = `Flags posts Jev rates ${level.threshold}% or higher`;
+      hint.textContent = `Flags posts Jev rates ${thresholdOf(value)}% or higher`;
     };
+    const custom = node("label", "custom-threshold");
+    const number = node("input", "text-input");
+    number.type = "number";
+    number.min = String(CUSTOM_MIN);
+    number.max = String(CUSTOM_MAX);
+    number.step = "1";
+    number.inputMode = "numeric";
+    number.value = String(thresholdOf(settings.sensitivity));
+    custom.append(node("span", "", "Threshold"), number, node("span", "", "%"));
+    custom.hidden = !Number.isInteger(settings.sensitivity);
+    const saveCustom = async () => {
+      const value = Math.min(CUSTOM_MAX, Math.max(CUSTOM_MIN, Math.round(Number(number.value) || thresholdOf("balanced"))));
+      number.value = String(value);
+      describe(value);
+      await api.updateSettings({ sensitivity: value });
+      saved();
+    };
+    number.addEventListener("change", saveCustom);
     LEVELS.forEach(({ value, label }) => {
       const option = node("label", "segment");
       const input = node("input");
       input.type = "radio";
       input.name = "sensitivity";
       input.value = value;
-      input.checked = settings.sensitivity === value;
+      input.checked = value === "custom" ? Number.isInteger(settings.sensitivity) : settings.sensitivity === value;
       input.addEventListener("change", async () => {
+        custom.hidden = value !== "custom";
+        if (value === "custom") {
+          await saveCustom();
+          number.focus();
+          return;
+        }
+        number.value = String(thresholdOf(value));
         describe(value);
         await api.updateSettings({ sensitivity: value });
         saved();
@@ -96,7 +127,7 @@
       segmented.append(option);
     });
     describe(settings.sensitivity);
-    strictness.append(copy, segmented);
+    strictness.append(copy, segmented, custom);
 
     container.replaceChildren(section, strictness);
     return {

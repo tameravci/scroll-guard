@@ -112,7 +112,7 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
   if (!/^https:\/\/(?:x|twitter)\.com\//u.test(sender.url || "")) return;
   let post;
   try {
-    post = JevDetector.normalizePost({ text: message.text, quote: message.quote, images: message.images });
+    post = JevDetector.normalizePost({ text: message.text, quote: message.quote, images: message.images, parent: message.parent });
   } catch (error) {
     respond({ error: error.message }); return;
   }

@@ -18,16 +18,16 @@ test("defaults no longer include the removed block-suggestion settings", () => {
 
 test("turning off every verdict type pauses the extension, and switching on restores them", async () => {
   const { updateSettings, getSettings } = require("../src/storage.js");
-  assert.deepEqual({ ...DEFAULT_SETTINGS.verdicts }, { slop: true, clickbait: true, bot: true, scam: true });
-  await updateSettings({ enabled: true, verdicts: { slop: false, clickbait: true, bot: false, scam: false } });
-  assert.deepEqual((await getSettings()).verdicts, { slop: false, clickbait: true, bot: false, scam: false });
+  assert.deepEqual({ ...DEFAULT_SETTINGS.verdicts }, { slop: true, clickbait: true, bot: true, shill: true, scam: true });
+  await updateSettings({ enabled: true, verdicts: { slop: false, clickbait: true, bot: false, shill: false, scam: false } });
+  assert.deepEqual((await getSettings()).verdicts, { slop: false, clickbait: true, bot: false, shill: false, scam: false });
   assert.equal((await getSettings()).enabled, true);
-  const off = await updateSettings({ verdicts: { slop: false, clickbait: false, bot: false, scam: false } });
+  const off = await updateSettings({ verdicts: { slop: false, clickbait: false, bot: false, shill: false, scam: false } });
   assert.equal(off.enabled, false);
-  assert.deepEqual(off.verdicts, { slop: false, clickbait: false, bot: false, scam: false });
+  assert.deepEqual(off.verdicts, { slop: false, clickbait: false, bot: false, shill: false, scam: false });
   const on = await updateSettings({ enabled: true });
   assert.equal(on.enabled, true);
-  assert.deepEqual(on.verdicts, { slop: true, clickbait: true, bot: true, scam: true });
+  assert.deepEqual(on.verdicts, { slop: true, clickbait: true, bot: true, shill: true, scam: true });
   assert.equal("flagClickbait" in on, false);
 });
 
@@ -112,5 +112,49 @@ test("the dashboard counts the last 24 hours by verdict type", async () => {
   const { recent } = await getDashboard(now);
   assert.equal(recent.checked, 3);
   assert.equal(recent.flagged, 2);
-  assert.deepEqual(recent.byVerdict, { slop: 1, clickbait: 1, bot: 0, scam: 0 });
+  assert.deepEqual(recent.byVerdict, { slop: 1, clickbait: 1, bot: 0, shill: 0, scam: 0 });
+});
+
+test("repeat fingerprints ignore case, links, mentions, and punctuation, and skip short text", async () => {
+  const { repeatFingerprint } = require("../src/storage.js");
+  const text = "zerufinance turning existing onchain trading history into a starting Zaps balance is a pretty interesting concept.";
+  const same = await repeatFingerprint(`@zerufinance ${text.toUpperCase()} https://t.co/abc123`);
+  assert.equal(await repeatFingerprint(text), same);
+  assert.notEqual(await repeatFingerprint(`${text} Not quite the same.`), same);
+  assert.equal(await repeatFingerprint("Good morning everyone, happy weekend"), null);
+});
+
+test("repeats count other posts from the same account and other accounts that used the text", async () => {
+  const { findRepeats, repeatFingerprint } = require("../src/storage.js");
+  await clearHistory();
+  const textHash = await repeatFingerprint("This approach to funding agents shows great potential for success in the market");
+  const now = Date.now();
+  await recordObservation({ handle: "Farmer", fingerprint: "f1", textHash, flagged: false, families: [], at: now });
+  // The same post seen again is not a repeat.
+  assert.deepEqual(await findRepeats({ handle: "farmer", fingerprint: "f1", textHash }), { sameAccount: 0, otherAccounts: 0 });
+  assert.deepEqual(await findRepeats({ handle: "farmer", fingerprint: "f2", textHash }), { sameAccount: 1, otherAccounts: 0 });
+  await recordObservation({ handle: "other_a", fingerprint: "a1", textHash, flagged: false, families: [], at: now });
+  await recordObservation({ handle: "other_b", fingerprint: "b1", textHash, flagged: false, families: [], at: now });
+  assert.deepEqual(await findRepeats({ handle: "new_one", fingerprint: "n1", textHash }), { sameAccount: 0, otherAccounts: 3 });
+  assert.deepEqual(await findRepeats({ handle: "new_one", fingerprint: "n1", textHash: null }), { sameAccount: 0, otherAccounts: 0 });
+});
+
+test("local repeat flags count as bot spam and shill flags count separately", async () => {
+  await clearHistory();
+  const now = Date.now();
+  await recordObservation({ handle: "r", fingerprint: "r1", flagged: true, families: ["local-repeat"], at: now });
+  await recordObservation({ handle: "s", fingerprint: "s1", flagged: true, families: ["jev-shill"], at: now });
+  const { recent } = await getDashboard(now);
+  assert.equal(recent.byVerdict.bot, 1);
+  assert.equal(recent.byVerdict.shill, 1);
+});
+
+test("strictness takes a preset or an exact threshold from 20 to 99 percent", async () => {
+  const { updateSettings, getSettings } = require("../src/storage.js");
+  assert.equal((await updateSettings({ sensitivity: 82 })).sensitivity, 82);
+  for (const bad of [19, 100, 82.5, "82", "loose"]) {
+    assert.equal((await updateSettings({ sensitivity: bad })).sensitivity, 82, String(bad));
+  }
+  assert.equal((await updateSettings({ sensitivity: "sensitive" })).sensitivity, "sensitive");
+  assert.equal((await getSettings()).sensitivity, "sensitive");
 });

@@ -45,7 +45,34 @@
 
   // Everything sent to Jev. A change in any part means a new decision.
   function inputOf(parsed) {
-    return JSON.stringify([parsed.handle, parsed.statusId, parsed.text, parsed.quote, parsed.images]);
+    return JSON.stringify([parsed.handle, parsed.statusId, parsed.text, parsed.quote, parsed.images, parsed.parent]);
+  }
+
+  // Copy-paste text found on this device. It is a bot verdict without a Jev call.
+  function repeatDetection({ sameAccount, otherAccounts }) {
+    const excerpt = sameAccount > 0
+      ? `This account posted the same text ${sameAccount === 1 ? "once" : `${sameAccount} times`} before.`
+      : `${otherAccounts} other accounts posted the same text.`;
+    return {
+      isSlop: false, isScam: false, isBot: true, isShill: false, isClickbait: false,
+      isFlagged: true, canBlock: true, confidence: null, probability: null,
+      decision: "bot", model: "local", families: ["local-repeat"],
+      evidence: [{
+        name: "Repeated text", family: "local-repeat", excerpt,
+        fix: "Copy-paste posting is a common sign of bot spam. Scroll Guard found this on your device, without a Jev request."
+      }]
+    };
+  }
+
+  // Repeats count after one earlier copy from the same account, or after copies
+  // from two other accounts.
+  async function localVerdict(parsed, fingerprint) {
+    // The hash is stored either way, so repeats are found once bot spam is on again.
+    const textHash = await api.repeatFingerprint(parsed.text);
+    if (!textHash || settings.verdicts?.bot === false) return { textHash, detection: null };
+    const repeats = await api.findRepeats({ handle: parsed.handle, fingerprint, textHash });
+    const repeated = repeats.sameAccount >= 1 || repeats.otherAccounts >= 2;
+    return { textHash, detection: repeated ? repeatDetection(repeats) : null };
   }
 
   function callbacksFor(parsed) {
@@ -84,7 +111,24 @@
     }
   }
 
+  // Expands "Show more" on the post and on its parent, so the text is whole before
+  // it is read. A post that is already expanding is left to that call.
+  const expanding = new WeakSet();
+  async function expandForReading(article) {
+    if (expanding.has(article)) return false;
+    expanding.add(article);
+    try {
+      await api.expandPost(article).catch(() => false);
+      const parent = api.parentArticleOf(article);
+      if (parent) await api.expandPost(parent).catch(() => false);
+      return true;
+    } finally {
+      expanding.delete(article);
+    }
+  }
+
   async function processPost(article, expectedGeneration) {
+    if (!(await expandForReading(article))) return;
     const parsed = api.parsePost(article);
     if (!parsed || expectedGeneration !== generation || !settings?.enabled) return;
     const input = inputOf(parsed);
@@ -117,20 +161,21 @@
     article.dataset.scrollGuardPending = String(expectedGeneration);
 
     try {
-      const detection = await api.detectSlop({ text: parsed.text, quote: parsed.quote, images: parsed.images }, {
-        sensitivity: settings.sensitivity,
-        verdicts: settings.verdicts
-      });
-      if (!current()) return;
       const fingerprint = await api.fingerprintPost(
         parsed.handle,
         parsed.statusId,
         parsed.text
       );
+      const local = await localVerdict(parsed, fingerprint);
+      const detection = local.detection || await api.detectSlop(
+        { text: parsed.text, quote: parsed.quote, images: parsed.images, parent: parsed.parent },
+        { sensitivity: settings.sensitivity, verdicts: settings.verdicts }
+      );
       if (!current()) return;
       await api.recordObservation({
         handle: parsed.handle,
         fingerprint,
+        textHash: local.textHash,
         flagged: detection.isFlagged,
         families: detection.families,
         at: Date.now()
@@ -198,6 +243,7 @@
 
   // True when the post has no current verdict and is not already being checked.
   function needsCheck(article) {
+    if (expanding.has(article)) return false;
     const parsed = api.parsePost(article);
     if (!parsed) return false;
     const input = inputOf(parsed);

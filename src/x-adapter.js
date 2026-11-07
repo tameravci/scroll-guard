@@ -91,6 +91,56 @@
       .slice(0, 4);
   }
 
+  function articleHandle(article) {
+    const link = primaryStatusLink(article);
+    return link ? parseStatusHref(link.getAttribute("href"))?.handle || null : null;
+  }
+
+  // In a thread, X draws the parent post in the cell just above the reply, and the
+  // reply carries "Replying to" profile links. The words are translated, but the
+  // links are not, so match the parent's author against those links.
+  function parentArticle(article, quote) {
+    const cell = article.closest?.("[data-testid='cellInnerDiv']");
+    const previous = cell?.previousElementSibling?.querySelector?.("article[data-testid='tweet']");
+    const parentHandle = previous ? articleHandle(previous) : null;
+    if (!parentHandle) return null;
+    // Leave out the post's own author line and avatar, its text mentions, and the
+    // quoted post, so only the "Replying to" links remain.
+    const skip = [
+      article.querySelector("[data-testid='User-Name']"),
+      article.querySelector("[data-testid='Tweet-User-Avatar']"),
+      primaryTextElement(article, quote),
+      quote
+    ].filter(Boolean);
+    const replyTargets = [...article.querySelectorAll("a[href^='/']")]
+      .filter((link) => !skip.some((part) => part.contains(link)))
+      .map((link) => link.getAttribute("href").match(/^\/([A-Za-z0-9_]{1,15})$/u)?.[1]?.toLowerCase())
+      .filter(Boolean);
+    return replyTargets.includes(parentHandle.toLowerCase()) ? previous : null;
+  }
+
+  // X cuts long posts and adds a "Show more" button that expands the text in place.
+  // Click it so Jev reads the whole post. A post above the screen grows upward into
+  // view, so scroll by the same height to keep what the reader sees still.
+  async function expandPost(article) {
+    const quote = quoteContainer(article);
+    const button = [...article.querySelectorAll("[data-testid='tweet-text-show-more-link']")]
+      .find((candidate) => candidate.tagName === "BUTTON" && !quote?.contains(candidate));
+    if (!button) return false;
+    const before = article.getBoundingClientRect();
+    button.click();
+    const expanded = await waitForElement(
+      () => (article.querySelector("[data-testid='tweet-text-show-more-link']") ? null : article),
+      2000,
+      50
+    );
+    if (expanded && before.top < 0) {
+      const grown = article.getBoundingClientRect().height - before.height;
+      if (grown > 0) root.scrollBy?.(0, grown);
+    }
+    return Boolean(expanded);
+  }
+
   function parsePost(article) {
     if (!article || typeof article.querySelector !== "function") {
       return null;
@@ -118,6 +168,10 @@
       statusUrl: status.url,
       text,
       quote: readableText(quote?.querySelector("[data-testid='tweetText']")),
+      parent: (() => {
+        const parent = parentArticle(article, quote);
+        return parent ? readableText(primaryTextElement(parent, quoteContainer(parent))) : "";
+      })(),
       images: photoDescriptions(article, quote),
       textElement
     };
@@ -148,16 +202,16 @@
     return new Promise((resolve) => root.setTimeout(resolve, durationMs));
   }
 
-  async function waitForElement(getElement, timeoutMs) {
+  async function waitForElement(getElement, timeoutMs, stepMs = 200) {
     const deadline = Date.now() + timeoutMs;
     while (Date.now() < deadline) {
       const element = getElement();
       if (element) {
         return element;
       }
-      await sleep(200);
+      await sleep(stepMs);
     }
-    return null;
+    return getElement() || null;
   }
 
   function normalizedMenuText(value) {
@@ -243,6 +297,8 @@
 
   return {
     HANDOFF_HASH,
+    expandPost,
+    parentArticleOf: (article) => parentArticle(article, quoteContainer(article)),
     findPosts,
     handleBlockHandoff,
     normalizeWhitespace,

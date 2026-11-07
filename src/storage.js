@@ -15,13 +15,20 @@
   const MAX_POSTS_PER_ACCOUNT = 30;
   // Settings from the removed repeated-account block suggestions.
   const RETIRED_SETTINGS = ["showBlockSuggestions", "minimumObservedPosts", "minimumFlaggedPosts", "flagClickbait"];
-  const VERDICTS = Object.freeze(["slop", "clickbait", "bot", "scam"]);
+  const VERDICTS = Object.freeze(["slop", "clickbait", "bot", "shill", "scam"]);
+  // Repeated text counts only when it is long enough to be unlikely by chance.
+  // "gm" or "Good morning" from many accounts is normal.
+  const REPEAT_MIN_WORDS = 8;
   const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+  const PRESETS = ["conservative", "balanced", "sensitive"];
+  // Strictness is a preset name or an exact threshold in percent.
+  const validSensitivity = (value) =>
+    PRESETS.includes(value) || (Number.isInteger(value) && value >= 20 && value <= 99);
 
   const DEFAULT_SETTINGS = Object.freeze({
     enabled: true,
     sensitivity: "balanced",
-    verdicts: Object.freeze({ slop: true, clickbait: true, bot: true, scam: true })
+    verdicts: Object.freeze({ slop: true, clickbait: true, bot: true, shill: true, scam: true })
   });
 
   function normalizeVerdicts(value, legacy) {
@@ -85,6 +92,7 @@
     settings.verdicts = normalizeVerdicts(settings.verdicts, settings);
     enforceActive(settings);
     RETIRED_SETTINGS.forEach((key) => delete settings[key]);
+    if (!validSensitivity(settings.sensitivity)) settings.sensitivity = "balanced";
     if (Number(candidate.schemaVersion || 0) < 2 && settings.sensitivity === "conservative") {
       settings.sensitivity = "balanced";
     }
@@ -200,6 +208,39 @@
     return digestHex(`${state.salt}|${normalizeHandle(handle)}|${source}`);
   }
 
+  // A salted hash of the post text with links, mentions, case, and punctuation
+  // removed, so copy-paste posts match. Returns null for short text.
+  async function repeatFingerprint(text) {
+    const words = String(text || "")
+      .toLowerCase()
+      .replace(/https?:\/\/\S+|\b\S+\.\S+\/\S*|@[a-z0-9_]+/gu, " ")
+      .replace(/[^\p{L}\p{N}\s]/gu, " ")
+      .split(/\s+/u)
+      .filter(Boolean);
+    if (words.length < REPEAT_MIN_WORDS) return null;
+    const state = await init();
+    return digestHex(`${state.salt}|text|${words.join(" ")}`);
+  }
+
+  // How often this text appeared before: from this account in another post, and
+  // from other accounts.
+  async function findRepeats({ handle, fingerprint, textHash }) {
+    const state = await init();
+    const own = normalizeHandle(handle);
+    let sameAccount = 0;
+    let otherAccounts = 0;
+    if (!textHash) return { sameAccount, otherAccounts };
+    Object.values(state.accounts).forEach((account) => {
+      const matches = (account.posts || []).filter(
+        (post) => post.textHash === textHash && post.fingerprint !== fingerprint
+      ).length;
+      if (!matches) return;
+      if (account.handle === own) sameAccount += matches;
+      else otherAccounts += 1;
+    });
+    return { sameAccount, otherAccounts };
+  }
+
   async function getSettings() {
     const state = await init();
     return clone(state.settings);
@@ -213,7 +254,7 @@
     if (patch.verdicts && typeof patch.verdicts === "object") {
       allowed.verdicts = patch.verdicts;
     }
-    if (["conservative", "balanced", "sensitive"].includes(patch.sensitivity)) {
+    if (validSensitivity(patch.sensitivity)) {
       allowed.sensitivity = patch.sensitivity;
     }
 
@@ -251,6 +292,7 @@
           fingerprint: observation.fingerprint,
           flagged: observation.flagged === true,
           families: [...new Set(observation.families || [])].slice(0, 12),
+          ...(typeof observation.textHash === "string" ? { textHash: observation.textHash } : {}),
           at: now
         });
         account.posts = account.posts
@@ -279,6 +321,8 @@
     if (family === "jev-scam") return "scam";
     if (family === "jev-bot") return "bot";
     if (family === "jev-clickbait") return "clickbait";
+    if (family === "jev-shill") return "shill";
+    if (family === "local-repeat") return "bot";
     return "slop";
   }
 
@@ -288,7 +332,7 @@
     const since = now - ONE_DAY_MS;
     const recentPosts = accounts.flatMap((account) => account.posts || [])
       .filter((post) => Number(post.at || 0) >= since);
-    const byVerdict = { slop: 0, clickbait: 0, bot: 0, scam: 0 };
+    const byVerdict = { slop: 0, clickbait: 0, bot: 0, shill: 0, scam: 0 };
     recentPosts.filter((post) => post.flagged === true).forEach((post) => {
       byVerdict[verdictOf((post.families || [])[0])] += 1;
     });
@@ -373,6 +417,7 @@
     STORAGE_KEY,
     VERDICTS,
     clearHistory,
+    findRepeats,
     fingerprintPost,
     getDashboard,
     getDiagnostics,
@@ -381,6 +426,7 @@
     normalizeHandle,
     onStateChanged,
     recordObservation,
+    repeatFingerprint,
     reportDiagnostics,
     updateSettings
   };

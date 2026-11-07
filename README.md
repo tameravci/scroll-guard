@@ -1,6 +1,6 @@
 # Scroll Guard
 
-Flags AI slop, clickbait, bot spam, and scams in your X feed, for pennies a month.
+Flags AI slop, shilling, clickbait, bot spam, and scams in your X feed, for pennies a month.
 
 Scroll Guard is an open-source Chrome extension. TypeSafe's Jev model reads each post
 as you scroll, and flagged posts get a colored frame, a short verdict, and a Block
@@ -71,11 +71,24 @@ and clickbait.
 
 ## Using it
 
-The toolbar popup holds the on/off switch, the verdict types to flag (slop, clickbait,
-bot spam, scam), and the strictness. Unchecking the last type pauses the extension;
+The toolbar popup holds the on/off switch, the verdict types to flag (slop, shilling,
+clickbait, bot spam, scam), and the strictness: Fewer (90%), Balanced (75%), More (60%),
+or Custom, where you type your own threshold from 20% to 99%. Unchecking the last type pauses the extension;
 checking one again, or turning the switch on, resumes it. Until a key is saved, the
 icon shows a `!` badge and the popup asks for the key. The setup page also holds the
 privacy summary and the button that clears local history.
+
+What Jev reads for each post:
+
+- The whole post. Scroll Guard clicks X's "Show more" button, so long posts appear
+  expanded in your feed.
+- For a reply, the post it answers, so Jev can spot generic reply farming.
+- The text of a quoted post and the photo descriptions the author wrote. Photos are
+  never sent.
+
+Copy-paste text is caught on your device without a Jev request. A post of 8 words or
+more is flagged as bot spam, marked "Repeat", when the same account posted the same
+text before or when two other accounts did.
 
 The extension requests Chrome's `storage` permission, access to the TypeSafe API,
 and content-script access to `x.com`/`twitter.com`. API requests incur usage on your key.

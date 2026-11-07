@@ -3,7 +3,7 @@
   "name": "Scroll Guard",
   "version": "0.3.0",
   "homepage_url": "https://github.com/tameravci/scroll-guard",
-  "description": "Flags AI slop, clickbait, bot spam, and scams in your X feed with TypeSafe Jev. Bring your own key.",
+  "description": "Flags AI slop, shilling, clickbait, bot spam, and scams in your X feed with TypeSafe Jev. Bring your own key.",
   "host_permissions": ["https://api.typesafe.ai/*"],
   "background": { "service_worker": "src/background.js" },
   "permissions": [

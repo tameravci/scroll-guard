@@ -7,8 +7,10 @@ highlighting feature.
 
 While enabled on `x.com` or `twitter.com`, the extension reads the primary text,
 author handle, and status ID of posts rendered in the current page. It also reads
-the text of a quoted post and the photo descriptions (alt text) that the author
-wrote. The Jev request contains only these three kinds of text: the post text, the
+the text of the post that a reply answers, the text of a quoted post, and the photo
+descriptions (alt text) that the author wrote. To read a long post in full, it
+clicks X's "Show more" button, which expands the post on the page. The Jev request
+contains only these four kinds of text: the post text, the parent post text, the
 quoted post text, and the photo descriptions. It contains no handles, names,
 images, or links to the post. Text itself may contain personal information.
 
@@ -20,6 +22,9 @@ The extension stores the following in `chrome.storage.local`:
 - the selected strictness and which verdict types are flagged;
 - author handles, used for the local post and account counts;
 - a salted SHA-256 fingerprint for each observed post, used for deduplication;
+- for posts of 8 words or more, a salted SHA-256 hash of the text with links,
+  mentions, case, and punctuation removed, used to find text that is posted again
+  word for word. The hash cannot be turned back into the text;
 - whether the post matched and the identifiers of its pattern families;
 - timestamps used to retain the latest 30 observations per account;
 - latest aggregate scanner diagnostics: post-card, parsed, evidence, highlight,
@@ -35,8 +40,8 @@ and text hashes are cached in worker memory; full post text is not cached there.
 
 ## Data transmission
 
-The extension sends post text, quoted post text, photo descriptions, and its
-assessment rubric to
+The extension sends post text, parent post text, quoted post text, photo
+descriptions, and its assessment rubric to
 `https://api.typesafe.ai/v1/systemone`, authenticated with your TypeSafe key.
 When you save a key, the extension first sends one test request with a fixed
 string ("Key check.") to check the key; it contains no post text.

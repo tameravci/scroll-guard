@@ -53,8 +53,36 @@ const quoteFixture = `<html><head><meta charset="utf-8"></head><body><main>
 <div role="link"><div data-testid="User-Name"><span>Other</span><span>@Other</span></div><time>3h</time>
 <div data-testid="tweetText">Quote check: text of the quoted post only</div></div></article>
 </main></body></html>`;
+// A thread as X draws it: the parent sits in the cell above the reply, cut short
+// behind a "Show more" button that expands the text in place, and the reply links
+// to the parent's author. Far below, one account posts the same text twice.
+const threadRequests = [];
+const parentShort = "Thread check: our protocol turns phones into data nodes.";
+const parentFull = `${parentShort} Buyers fund requests, contributors capture footage, and escrow pays out on delivery.`;
+const repeatText = "Thread check repeat: this approach to funding agents shows great potential for real success";
+const cell = (inner) => `<div data-testid="cellInnerDiv">${inner}</div>`;
+const threadFixture = `<html><head><meta charset="utf-8"></head><body><main>
+${cell(`<article data-testid="tweet"><div data-testid="User-Name"><a href="/ParentUser">Parent</a></div>
+<a href="/ParentUser/status/600"><time>1h</time></a>
+<div data-testid="tweetText">${parentShort}</div>
+<button type="button" data-testid="tweet-text-show-more-link" onclick="this.previousElementSibling.textContent = ${JSON.stringify(parentFull).replace(/"/g, "&quot;")}; this.remove();">Show more</button></article>`)}
+${cell(`<article data-testid="tweet"><div data-testid="User-Name"><a href="/ReplyGuy">Reply Guy</a></div>
+<a href="/ReplyGuy/status/601"><time>1h</time></a>
+<div>Replying to <a href="/ParentUser">@ParentUser</a></div>
+<div data-testid="tweetText">Thread check reply: love this</div></article>`)}
+${cell(`<article data-testid="tweet"><div data-testid="User-Name"><a href="/CopyPaste">Copy</a></div>
+<a href="/CopyPaste/status/602"><time>1h</time></a><div data-testid="tweetText">${repeatText}</div></article>`)}
+${cell(`<div style="height:3000px"></div>`)}
+${cell(`<article data-testid="tweet"><div data-testid="User-Name"><a href="/CopyPaste">Copy</a></div>
+<a href="/CopyPaste/status/603"><time>1h</time></a><div data-testid="tweetText">${repeatText}</div></article>`)}
+</main></body></html>`;
 let fail = false;
 let context;
+// The test pages are tabs in one window, and Chrome draws no frames for a tab in
+// the background. Each page comes to the front before the test uses it. A headless
+// tab can still miss frames, so every wait checks on a timer, clicks skip
+// Playwright's wait for a stable element, and each scroll sends its own scroll
+// event, which Chrome otherwise sends only with a frame.
 const launchOptions = {
   headless: true,
   ...(process.env.CHROME_EXECUTABLE ? { executablePath: process.env.CHROME_EXECUTABLE } : { channel: "chromium" }),
@@ -63,7 +91,7 @@ const launchOptions = {
 try {
   context = await chromium.launchPersistentContext(profile, launchOptions);
   await context.route("https://x.com/**", (route) => route.fulfill({ contentType: "text/html",
-    body: { "/long": longFixture, "/quote": quoteFixture }[new URL(route.request().url()).pathname] || fixture }));
+    body: { "/long": longFixture, "/quote": quoteFixture, "/thread": threadFixture }[new URL(route.request().url()).pathname] || fixture }));
   if (!live) {
     await context.route("https://api.typesafe.ai/**", async (route) => {
       const request = route.request().postDataJSON();
@@ -79,54 +107,70 @@ try {
       const longMatch = /^Long feed post number (\d+)/u.exec(request.state.post);
       if (longMatch) longRequests.push(Number(longMatch[1]));
       else if (request.state.post.startsWith("Quote check")) quoteRequests.push(request.state);
+      else if (request.state.post.startsWith("Thread check")) threadRequests.push(request.state);
       else calls += 1;
       assert.equal(route.request().headers().authorization, `Bearer ${key}`);
-      if (!request.state.post.startsWith("Quote check")) assert.deepEqual(Object.keys(request.state), ["post"]);
+      if (!/^(Quote|Thread) check/u.test(request.state.post)) assert.deepEqual(Object.keys(request.state), ["post"]);
       if (fail) { await route.fulfill({ status: 429, body: "Test quota failure" }); return; }
       const slop = request.state.post === samples[1];
       const scam = request.state.post === samples[2];
       await route.fulfill({ contentType: "application/json", body: JSON.stringify({
         model: "jev-browser-test",
         answers: {
-          slop: { type: "choice", choice: scam ? "scam" : slop ? "slop" : "not_slop", confidence: 1, probabilities: { slop: +slop, scam: scam ? 0.93 : 0, bot: 0, clickbait: 0, not_slop: scam ? 0.07 : +!slop, uncertain: 0 } },
-          category: { type: "choice", choice: scam ? "scam" : slop ? "cadence" : "none", confidence: 1, probabilities: { contrast: 0, setup: 0, colon_reveal: 0, puffery: 0, buzzwords: 0, cadence: +slop, formatting: 0, scam: +scam, clickbait: 0, bot: 0, none: +(!slop && !scam) } }
+          slop: { type: "choice", choice: scam ? "scam" : slop ? "slop" : "not_slop", confidence: 1, probabilities: { slop: +slop, scam: scam ? 0.93 : 0, bot: 0, shill: 0, clickbait: 0, not_slop: scam ? 0.07 : +!slop, uncertain: 0 } },
+          category: { type: "choice", choice: scam ? "scam" : slop ? "cadence" : "none", confidence: 1, probabilities: { contrast: 0, setup: 0, colon_reveal: 0, puffery: 0, buzzwords: 0, cadence: +slop, formatting: 0, scam: +scam, clickbait: 0, bot: 0, shill: 0, none: +(!slop && !scam) } }
         }
       }) });
     });
   }
   const worker = context.serviceWorkers()[0] || await context.waitForEvent("serviceworker");
   const extensionId = new URL(worker.url()).host;
+  // On install the extension opens its setup page in a new tab, which can land in
+  // front of a test page at any moment. Close it; the test opens its own.
+  const isSetup = (page) => page.url().includes("/options/options.html");
+  let setupTab;
+  for (let waited = 0; !setupTab && waited < 15000; waited += 100) {
+    setupTab = context.pages().find(isSetup);
+    if (!setupTab) await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  assert.ok(setupTab, "The extension must open its setup page on install");
+  await setupTab.close();
   const options = await context.newPage();
+  await options.bringToFront();
   await options.goto(`chrome-extension://${extensionId}/options/options.html`);
   await options.locator("#keyStatus").filter({ hasText: "No API key" }).waitFor();
   const feed = await context.newPage();
+  await feed.bringToFront();
   await feed.goto("https://x.com/home");
-  await feed.waitForFunction(() => document.querySelectorAll("[data-scroll-guard-processed]").length === 3);
+  await feed.waitForFunction(() => document.querySelectorAll("[data-scroll-guard-processed]").length === 3, null, { polling: 100 });
   assert.equal(await feed.locator("[data-scroll-guard-host]").count(), 0);
   assert.equal(calls, 0);
   if (!live) {
     // A key Jev rejects is not saved.
+    await options.bringToFront();
     await options.locator("#jevApiKey").fill("wrong-key");
-    await options.locator("#saveKey").click();
+    await options.locator("#saveKey").click({ force: true });
     await options.locator("#keyStatus").filter({ hasText: "Jev rejected this key" }).waitFor();
     assert.equal(await options.locator("#jevApiKey").inputValue(), "wrong-key");
     assert.equal(await options.evaluate(() => JevKeyStore.get()), "");
     assert.equal(keyChecks, 1);
   }
+  await options.bringToFront();
   await options.locator("#jevApiKey").fill(key);
-  await options.locator("#saveKey").click();
+  await options.locator("#saveKey").click({ force: true });
   await options.locator("#keyStatus").filter({ hasText: /^Key saved/ }).waitFor();
   assert.equal(await options.locator("#jevApiKey").inputValue(), "");
   if (!live) assert.equal(keyChecks, 2, "Saving must test the key with Jev first");
   if (!live) {
-    await options.locator(".segment", { hasText: "Fewer" }).click();
+    await options.bringToFront();
+    await options.locator(".segment", { hasText: "Fewer" }).click({ force: true });
     await options.waitForFunction(async () => {
       const { slopSpotterStateV1: state } = await chrome.storage.local.get("slopSpotterStateV1");
       return state?.settings.sensitivity === "conservative";
-    });
+    }, null, { polling: 100 });
   }
   await feed.reload();
-  await feed.waitForFunction(() => document.querySelectorAll("[data-scroll-guard-processed]").length === 3, null, { timeout: 60000 });
+  await feed.waitForFunction(() => document.querySelectorAll("[data-scroll-guard-processed]").length === 3, null, { timeout: 60000, polling: 100 });
   const diagnostics = await worker.evaluate(async () => (await chrome.storage.local.get("slopSpotterDiagnosticsV1")).slopSpotterDiagnosticsV1);
   // Model a feed card with intrinsic-size flex children, rather than only block layout.
   await feed.addStyleTag({ content: `
@@ -145,6 +189,7 @@ try {
   }
   // X can lay a post out as a flex row. The card must not squeeze the post text.
   const rowFeed = await context.newPage();
+  await rowFeed.bringToFront();
   await rowFeed.addInitScript(() => document.addEventListener("DOMContentLoaded", () => {
     // Match X: the article is a flex row. An inner row holds the avatar rail and
     // a column with the post body.
@@ -165,7 +210,7 @@ try {
     }
   }));
   await rowFeed.goto("https://x.com/home");
-  await rowFeed.waitForFunction(() => document.querySelectorAll("[data-scroll-guard-host]").length === 2, null, { timeout: 60000 });
+  await rowFeed.waitForFunction(() => document.querySelectorAll("[data-scroll-guard-host]").length === 2, null, { timeout: 60000, polling: 100 });
   for (const article of await rowFeed.locator("article:has([data-scroll-guard-host])").all()) {
     const text = await article.locator("[data-testid=tweetText]").boundingBox();
     const card = await article.locator("[data-scroll-guard-host]").boundingBox();
@@ -180,27 +225,29 @@ try {
     // Only posts near the screen are requested, on-screen posts first in reading order,
     // and scrolling brings the next posts in.
     const longFeed = await context.newPage();
+    await longFeed.bringToFront();
     await longFeed.setViewportSize({ width: 800, height: 700 });
     await longFeed.goto("https://x.com/long");
-    await longFeed.waitForFunction(() => document.querySelectorAll("[data-scroll-guard-processed]").length >= 5, null, { timeout: 30000 });
+    await longFeed.waitForFunction(() => document.querySelectorAll("[data-scroll-guard-processed]").length >= 5, null, { timeout: 30000, polling: 100 });
     await longFeed.waitForTimeout(1000);
     const first = [...longRequests];
     assert.ok(first.length >= 5 && first.length <= 8, `Expected only near-screen posts, got ${JSON.stringify(first)}`);
     assert.deepEqual(first.slice(0, 3), [0, 1, 2], `On-screen posts must go first: ${JSON.stringify(first)}`);
     assert.ok(Math.max(...first) < 8, `No far-off post may be requested: ${JSON.stringify(first)}`);
     for (let y = 700; y <= 7700; y += 700) {
-      await longFeed.evaluate((top) => window.scrollTo(0, top), y);
+      await longFeed.evaluate((top) => { window.scrollTo(0, top); window.dispatchEvent(new Event("scroll")); }, y);
       await longFeed.waitForTimeout(700);
     }
-    await longFeed.waitForFunction(() => document.querySelectorAll("[data-scroll-guard-processed]").length === 30, null, { timeout: 30000 });
+    await longFeed.waitForFunction(() => document.querySelectorAll("[data-scroll-guard-processed]").length === 30, null, { timeout: 30000, polling: 100 });
     assert.equal(new Set(longRequests).size, 30);
     assert.equal(longRequests.length, 30, "No post may be requested twice");
     await longFeed.close();
     // Jev gets the post's own text with emoji, the quoted post as context, and only
     // the photo descriptions the author wrote. A repost with no text of its own is skipped.
     const quoteFeed = await context.newPage();
+    await quoteFeed.bringToFront();
     await quoteFeed.goto("https://x.com/quote");
-    await quoteFeed.waitForFunction(() => document.querySelector("[data-scroll-guard-processed]"), null, { timeout: 30000 });
+    await quoteFeed.waitForFunction(() => document.querySelector("[data-scroll-guard-processed]"), null, { timeout: 30000, polling: 100 });
     await quoteFeed.waitForTimeout(1000);
     assert.deepEqual(quoteRequests, [{
       post: "Quote check: movie night 🍿 with the team",
@@ -208,6 +255,25 @@ try {
       image_descriptions: ["A cinema hall full of people"]
     }]);
     await quoteFeed.close();
+    // The parent is expanded before it is read, the reply carries the whole parent,
+    // and the second copy of the repeated text is flagged without a Jev request.
+    const threadFeed = await context.newPage();
+    await threadFeed.bringToFront();
+    await threadFeed.setViewportSize({ width: 800, height: 700 });
+    await threadFeed.goto("https://x.com/thread");
+    await threadFeed.waitForFunction(() => document.querySelectorAll("[data-scroll-guard-processed]").length >= 3, null, { timeout: 30000, polling: 100 });
+    await threadFeed.evaluate(() => { window.scrollTo(0, document.body.scrollHeight); window.dispatchEvent(new Event("scroll")); });
+    await threadFeed.waitForFunction(() => document.querySelectorAll("[data-scroll-guard-processed]").length === 4, null, { timeout: 30000, polling: 100 });
+    await threadFeed.waitForTimeout(500);
+    assert.equal(await threadFeed.locator("[data-testid=tweet-text-show-more-link]").count(), 0);
+    const byPost = Object.fromEntries(threadRequests.map((state) => [state.post, state]));
+    assert.deepEqual(byPost[parentFull], { post: parentFull });
+    assert.deepEqual(byPost["Thread check reply: love this"], { post: "Thread check reply: love this", parent_post: parentFull });
+    assert.equal(threadRequests.filter((state) => state.post === repeatText).length, 1, "The repeated text must reach Jev only once");
+    assert.equal(threadRequests.length, 3, JSON.stringify(threadRequests));
+    const repeatCard = threadFeed.locator("article").nth(3).locator("[data-scroll-guard-host]");
+    assert.match(await repeatCard.evaluate((host) => host.shadowRoot.textContent), /Likely bot spam.*Repeat/su);
+    await threadFeed.close();
   }
   assert.equal(await feed.locator("[data-scroll-guard-host]").count(), 2, JSON.stringify(diagnostics));
   assert.match(await feed.locator("article").nth(1).locator("[data-scroll-guard-host]").evaluate((host) => host.shadowRoot.textContent), /Likely AI slop/);
@@ -217,7 +283,8 @@ try {
     assert.equal(await card.getAttribute("data-scroll-guard-verdict"), verdict);
     // X paints hover backgrounds on the post's children. The frame must stay above them.
     await feed.addStyleTag({ content: "article:hover > div { background: rgb(22, 24, 28) !important; position: relative; }" });
-    await card.hover();
+    await feed.bringToFront();
+    await card.hover({ force: true });
     // X rewrites the article's class attribute on hover. The frame must survive it.
     await card.evaluate((node) => { node.className = "css-175oi2r r-hover"; });
     const frame = await card.evaluate((node) => {
@@ -228,10 +295,10 @@ try {
     assert.equal(frame.position, "absolute");
     assert.ok(Number(frame.z) >= 2, JSON.stringify(frame));
     const button = card.locator(".summary");
-    await button.click();
+    await button.click({ force: true });
     assert.equal(await button.getAttribute("aria-expanded"), "true");
     await card.locator(".details").waitFor({ state: "visible" });
-    await button.click();
+    await button.click({ force: true });
   }
   if (process.env.BROWSER_SCREENSHOTS) {
     await mkdir(process.env.BROWSER_SCREENSHOTS, { recursive: true });
@@ -250,7 +317,8 @@ try {
   }
   if (!live) {
     const opened = context.waitForEvent("page");
-    await feed.locator("article").nth(2).getByRole("button", { name: "Block @TestAccount", exact: true }).click();
+    await feed.bringToFront();
+    await feed.locator("article").nth(2).getByRole("button", { name: "Block @TestAccount", exact: true }).click({ force: true });
     const handoff = await opened;
     await handoff.waitForURL("https://x.com/TestAccount#scroll-guard-block");
     await handoff.close();
@@ -280,20 +348,22 @@ try {
   if (!live) {
     assert.equal(calls, 3);
     await feed.reload();
-    await feed.waitForFunction(() => document.querySelectorAll("[data-scroll-guard-processed]").length === 3);
+    await feed.waitForFunction(() => document.querySelectorAll("[data-scroll-guard-processed]").length === 3, null, { polling: 100 });
     assert.equal(calls, 3, "Reload should reuse cached decisions");
     await feed.locator("article").nth(1).evaluate((article, text) => {
       article.querySelector("[data-testid=tweetText]").textContent = text;
-      article.querySelector("a").href = "/TestAccount/status/200";
+      // Another author, so the reused card is not the same account repeating itself.
+      article.querySelector("a").href = "/OtherAccount/status/200";
     }, samples[0]);
-    await feed.waitForFunction(() => document.querySelectorAll("[data-scroll-guard-host]").length === 1 && document.querySelectorAll("[data-scroll-guard-processed]").length === 3);
+    await feed.waitForFunction(() => document.querySelectorAll("[data-scroll-guard-host]").length === 1 && document.querySelectorAll("[data-scroll-guard-processed]").length === 3, null, { polling: 100 });
     assert.equal(calls, 3, "Recycled cards must reclassify and reuse cached text decisions");
     assert.equal(await feed.locator("article").nth(1).evaluate((node) => node.hasAttribute("data-scroll-guard-verdict")), false);
-    await options.locator("#removeKey").click();
+    await options.bringToFront();
+    await options.locator("#removeKey").click({ force: true });
     await options.locator("#keyStatus").filter({ hasText: "No API key" }).waitFor();
     fail = true;
     await options.locator("#jevApiKey").fill(key);
-    await options.locator("#saveKey").click();
+    await options.locator("#saveKey").click({ force: true });
     await options.locator("#keyStatus").filter({ hasText: /^Key saved/ }).waitFor();
     await feed.reload();
     await feed.waitForTimeout(1500);
@@ -306,32 +376,38 @@ try {
     assert.equal(await feed.locator("[data-scroll-guard-processed]").count(), 0);
     assert.equal(await feed.locator("[data-scroll-guard-host]").count(), 0);
     const popup = await context.newPage();
+    await popup.bringToFront();
     await popup.goto(`chrome-extension://${extensionId}/popup/popup.html`);
     await popup.locator("#diagnostics").filter({ hasText: "Scanner error" }).waitFor();
     // Unchecking the last verdict type pauses the extension; checking one resumes it;
     // the switch brings every type back.
     const settingsNow = () => popup.evaluate(async () => (await chrome.storage.local.get("slopSpotterStateV1")).slopSpotterStateV1.settings);
-    for (const name of ["AI slop", "Clickbait", "Bot spam", "Scam"]) {
-      await popup.locator(".row", { hasText: name }).click();
+    for (const name of ["AI slop", "Clickbait", "Bot spam", "Shilling", "Scam"]) {
+      await popup.locator(".row", { hasText: name }).click({ force: true });
     }
-    await popup.waitForFunction(() => !document.querySelector("#enabled").checked);
+    await popup.waitForFunction(() => !document.querySelector("#enabled").checked, null, { polling: 100 });
     assert.equal((await settingsNow()).enabled, false);
-    await popup.locator(".row", { hasText: "Scam" }).click();
-    await popup.waitForFunction(() => document.querySelector("#enabled").checked);
-    assert.deepEqual((await settingsNow()).verdicts, { slop: false, clickbait: false, bot: false, scam: true });
-    await popup.locator(".row", { hasText: "Scam" }).click();
-    await popup.waitForFunction(() => !document.querySelector("#enabled").checked);
-    await popup.locator("label.switch").click();
-    await popup.waitForFunction(() => [...document.querySelectorAll(".row .check")].every((box) => box.checked));
+    await popup.locator(".row", { hasText: "Scam" }).click({ force: true });
+    await popup.waitForFunction(() => document.querySelector("#enabled").checked, null, { polling: 100 });
+    assert.deepEqual((await settingsNow()).verdicts, { slop: false, clickbait: false, bot: false, shill: false, scam: true });
+    await popup.locator(".row", { hasText: "Scam" }).click({ force: true });
+    await popup.waitForFunction(() => !document.querySelector("#enabled").checked, null, { polling: 100 });
+    await popup.locator("label.switch").click({ force: true });
+    await popup.waitForFunction(() => [...document.querySelectorAll(".row .check")].every((box) => box.checked), null, { polling: 100 });
     const restored = await settingsNow();
     assert.equal(restored.enabled, true);
-    assert.deepEqual(restored.verdicts, { slop: true, clickbait: true, bot: true, scam: true });
+    assert.deepEqual(restored.verdicts, { slop: true, clickbait: true, bot: true, shill: true, scam: true });
     // The key must survive a restart. Chrome clears session storage then, as it
     // does on an extension reload.
     await context.close();
     context = await chromium.launchPersistentContext(profile, launchOptions);
     const reopened = await context.newPage();
-    await reopened.goto(`chrome-extension://${extensionId}/options/options.html`);
+    await reopened.bringToFront();
+    // After a restart Chrome can load this page a second time, which Playwright
+    // reports as an interrupted navigation. The page still lands on the setup page.
+    await reopened.goto(`chrome-extension://${extensionId}/options/options.html`).catch((error) => {
+      if (!/interrupted by another navigation/u.test(error.message)) throw error;
+    });
     await reopened.locator("#keyStatus").filter({ hasText: /^Key saved/ }).waitFor();
   }
   console.log(`${live ? "LIVE" : "MOCK"} browser flow passed: key entry, worker requests, feed annotations, and private local storage${live ? "" : ", cache reuse and provider errors"}.`);

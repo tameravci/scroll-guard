@@ -35,6 +35,11 @@ article[data-testid="tweet"][data-scroll-guard-verdict="clickbait"] {
   --ss-wash: rgba(45, 212, 191, 0.04);
 }
 
+article[data-testid="tweet"][data-scroll-guard-verdict="shill"] {
+  --ss-highlight: #5b9cff;
+  --ss-wash: rgba(91, 156, 255, 0.04);
+}
+
 [data-scroll-guard-host] {
   /* Fill a column card, and shrink instead of squeezing a row sibling. */
   display: block !important;

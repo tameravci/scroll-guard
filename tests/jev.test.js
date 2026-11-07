@@ -3,8 +3,8 @@ const assert = require("node:assert/strict");
 const jev = require("../src/jev.js");
 function response(probability = 0.8) {
   return { model: "jev-test", answers: {
-    slop: { type: "choice", choice: "slop", confidence: 0.7, probabilities: { slop: probability, scam: 0, bot: 0, clickbait: 0, not_slop: 1 - probability, uncertain: 0 } },
-    category: { type: "choice", choice: "contrast", confidence: 1, probabilities: { contrast: 1, setup: 0, colon_reveal: 0, puffery: 0, buzzwords: 0, cadence: 0, formatting: 0, scam: 0, clickbait: 0, bot: 0, none: 0 } }
+    slop: { type: "choice", choice: "slop", confidence: 0.7, probabilities: { slop: probability, scam: 0, bot: 0, shill: 0, clickbait: 0, not_slop: 1 - probability, uncertain: 0 } },
+    category: { type: "choice", choice: "contrast", confidence: 1, probabilities: { contrast: 1, setup: 0, colon_reveal: 0, puffery: 0, buzzwords: 0, cadence: 0, formatting: 0, scam: 0, clickbait: 0, bot: 0, shill: 0, none: 0 } }
   } };
 }
 test("Jev probability thresholds differ from model confidence", () => {
@@ -13,10 +13,10 @@ test("Jev probability thresholds differ from model confidence", () => {
   assert.equal(jev.interpret(response(0.65), "sensitive").isSlop, true);
 });
 test("every flagged slop or scam post can be blocked, and only at the chosen sensitivity", () => {
-  for (const verdict of ["slop", "scam", "bot", "clickbait"]) {
+  for (const verdict of ["slop", "scam", "bot", "shill", "clickbait"]) {
     const data = response(0.6);
     data.answers.slop.choice = verdict;
-    data.answers.slop.probabilities = { slop: 0, scam: 0, bot: 0, clickbait: 0, not_slop: 0.4, uncertain: 0, [verdict]: 0.6 };
+    data.answers.slop.probabilities = { slop: 0, scam: 0, bot: 0, shill: 0, clickbait: 0, not_slop: 0.4, uncertain: 0, [verdict]: 0.6 };
     const sensitive = jev.interpret(data, "sensitive");
     assert.equal(sensitive.isFlagged, true);
     assert.equal(sensitive.canBlock, true);
@@ -29,13 +29,13 @@ test("every flagged slop or scam post can be blocked, and only at the chosen sen
   clean.answers.slop.choice = "not_slop";
   assert.equal(jev.interpret(clean).canBlock, false);
   clean.answers.slop.choice = "uncertain";
-  clean.answers.slop.probabilities = { slop: 0, scam: 0, bot: 0, clickbait: 0, not_slop: 0, uncertain: 1 };
+  clean.answers.slop.probabilities = { slop: 0, scam: 0, bot: 0, shill: 0, clickbait: 0, not_slop: 0, uncertain: 1 };
   assert.equal(jev.interpret(clean).canBlock, false);
 });
 test("bot spam flags use the bot probability, rank below scam, and keep a distinct label", () => {
   const data = response();
   data.answers.slop.choice = "bot";
-  data.answers.slop.probabilities = { slop: 0.1, scam: 0, bot: 0.8, clickbait: 0, not_slop: 0.1, uncertain: 0 };
+  data.answers.slop.probabilities = { slop: 0.1, scam: 0, bot: 0.8, shill: 0, clickbait: 0, not_slop: 0.1, uncertain: 0 };
   const result = jev.interpret(data);
   assert.equal(result.isBot, true);
   assert.equal(result.isSlop, false);
@@ -46,14 +46,14 @@ test("bot spam flags use the bot probability, rank below scam, and keep a distin
   const body = jev.requestFor("post");
   assert.ok("bot" in body.questions.slop.criteria);
   assert.ok("bot" in body.questions.category.criteria);
-  assert.match(body.questions.slop.criteria.scam, /priority over bot, clickbait, and slop/);
+  assert.match(body.questions.slop.criteria.scam, /priority over bot, shill, clickbait, and slop/);
   delete data.answers.slop.probabilities.bot;
   assert.throws(() => jev.interpret(data));
 });
 test("clickbait flags carry their own label, can be turned off, and news is excluded from slop", () => {
   const data = response();
   data.answers.slop.choice = "clickbait";
-  data.answers.slop.probabilities = { slop: 0.05, scam: 0, bot: 0, clickbait: 0.9, not_slop: 0.05, uncertain: 0 };
+  data.answers.slop.probabilities = { slop: 0.05, scam: 0, bot: 0, shill: 0, clickbait: 0.9, not_slop: 0.05, uncertain: 0 };
   const result = jev.interpret(data);
   assert.equal(result.isClickbait, true);
   assert.equal(result.isSlop, false);
@@ -71,10 +71,10 @@ test("clickbait flags carry their own label, can be turned off, and news is excl
   assert.throws(() => jev.interpret(data));
 });
 test("each verdict can be turned off on its own", () => {
-  for (const verdict of ["slop", "scam", "bot", "clickbait"]) {
+  for (const verdict of ["slop", "scam", "bot", "shill", "clickbait"]) {
     const data = response(0.95);
     data.answers.slop.choice = verdict;
-    data.answers.slop.probabilities = { slop: 0, scam: 0, bot: 0, clickbait: 0, not_slop: 0.05, uncertain: 0, [verdict]: 0.95 };
+    data.answers.slop.probabilities = { slop: 0, scam: 0, bot: 0, shill: 0, clickbait: 0, not_slop: 0.05, uncertain: 0, [verdict]: 0.95 };
     assert.equal(jev.interpret(data, "balanced", { verdicts: { [verdict]: false } }).isFlagged, false);
     assert.equal(jev.interpret(data, "balanced", { verdicts: { [verdict]: true } }).isFlagged, true);
     assert.equal(jev.interpret(data, "balanced").isFlagged, true);
@@ -90,12 +90,48 @@ test("slop means AI-written text and names the strongest pattern as evidence", (
   assert.match(body.questions.slop.instructions, /reads as generated by an AI model/);
   assert.match(body.questions.slop.instructions, /One weak signal is not enough/);
   assert.deepEqual(Object.keys(body.questions.category.criteria),
-    ["contrast", "setup", "colon_reveal", "puffery", "buzzwords", "cadence", "formatting", "scam", "clickbait", "bot", "none"]);
+    ["contrast", "setup", "colon_reveal", "puffery", "buzzwords", "cadence", "formatting", "scam", "clickbait", "bot", "shill", "none"]);
+});
+test("shill flags undisclosed promotion, ranks below bot, and can be turned off", () => {
+  const data = response();
+  data.answers.slop.choice = "shill";
+  data.answers.slop.probabilities = { slop: 0.1, scam: 0, bot: 0, shill: 0.85, clickbait: 0, not_slop: 0.05, uncertain: 0 };
+  const result = jev.interpret(data);
+  assert.equal(result.isShill, true);
+  assert.equal(result.isSlop, false);
+  assert.equal(result.canBlock, true);
+  assert.deepEqual(result.families, ["jev-shill"]);
+  assert.match(result.evidence[0].fix, /paid or incentivized promotion/);
+  assert.equal(jev.interpret(data, "balanced", { verdicts: { shill: false } }).isFlagged, false);
+  const body = jev.requestFor("post");
+  assert.match(body.questions.slop.criteria.bot, /priority over shill, clickbait, and slop/);
+  assert.match(body.questions.slop.criteria.shill, /priority over clickbait and slop/);
+  assert.match(body.questions.slop.instructions, /Reply farming is bot spam/);
+});
+test("a slop verdict whose category is another verdict type still counts as slop", () => {
+  for (const category of ["shill", "bot", "scam", "clickbait", "none"]) {
+    const data = response(0.9);
+    data.answers.category.choice = category;
+    data.answers.category.probabilities = Object.fromEntries(Object.keys(data.answers.category.probabilities).map((key) => [key, key === category ? 1 : 0]));
+    assert.deepEqual(jev.interpret(data).families, ["jev-slop"], category);
+  }
+});
+test("an exact threshold in percent works like a preset", () => {
+  assert.equal(jev.interpret(response(0.82), 82).isSlop, true);
+  assert.equal(jev.interpret(response(0.81), 82).isSlop, false);
+  assert.equal(jev.interpret(response(0.3), 25).isSlop, true);
+  // Out of range falls back to Balanced (75%).
+  assert.equal(jev.interpret(response(0.7), 5).isSlop, false);
+});
+test("the parent post goes to Jev as reply context", () => {
+  const state = jev.requestFor({ text: "Great point!", parent: "Our protocol launches today." }).state;
+  assert.deepEqual(state, { post: "Great point!", parent_post: "Our protocol launches today." });
+  assert.throws(() => jev.requestFor({ text: "post", parent: "x".repeat(20001) }));
 });
 test("uncertainty and invalid responses never become slop", () => {
   const data = response(0.1);
   data.answers.slop.choice = "uncertain";
-  data.answers.slop.probabilities = { slop: 0.1, scam: 0, bot: 0, clickbait: 0, not_slop: 0.1, uncertain: 0.8 };
+  data.answers.slop.probabilities = { slop: 0.1, scam: 0, bot: 0, shill: 0, clickbait: 0, not_slop: 0.1, uncertain: 0.8 };
   assert.equal(jev.interpret(data).isSlop, false);
   assert.throws(() => jev.interpret({}));
   data.answers.slop.probabilities.slop = NaN;
@@ -104,7 +140,7 @@ test("uncertainty and invalid responses never become slop", () => {
 test("scam flags use the scam probability and retain a distinct label", () => {
   const data = response();
   data.answers.slop.choice = "scam";
-  data.answers.slop.probabilities = { slop: 0.05, scam: 0.8, bot: 0, clickbait: 0, not_slop: 0.1, uncertain: 0.05 };
+  data.answers.slop.probabilities = { slop: 0.05, scam: 0.8, bot: 0, shill: 0, clickbait: 0, not_slop: 0.1, uncertain: 0.05 };
   const result = jev.interpret(data);
   assert.equal(result.isFlagged, true);
   assert.equal(result.isScam, true);
