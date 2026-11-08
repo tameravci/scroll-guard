@@ -5,3 +5,6 @@ node_modules/
 
 # Release builds; publish them through GitHub Releases, not git.
 artifacts/
+
+# Local agent tooling; it holds a path to this machine's Chrome profile.
+.mcp.json
