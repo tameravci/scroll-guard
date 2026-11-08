@@ -18,6 +18,7 @@ const posts = [
   { name: "Growth Notes", handle: "growthnotes", avatar: "#7a5d45", text: "Most founders think growth is about hustle. It's not. It's about systems. Here's what nobody tells you: the best teams don't work harder. They work smarter. Let that sink in.", verdict: "slop", p: 0.94, category: "contrast" },
   { name: "Newsflash Daily", handle: "newsflash_daily", avatar: "#4b6b5c", text: "JUST IN: Study reveals people who drink 5+ cups of coffee a day have less body fat, more muscle, and higher testosterone.", verdict: "clickbait", p: 0.97, category: "clickbait" },
   { name: "Listing Alerts", handle: "listalerts8812", avatar: "#5d527d", text: "If you want $TOKEN listed you have to show up now, sitting back does nothing tinyurl.com/x9f2k1 E4Ap4icMLwKot8rkkT listing id: 88213", verdict: "bot", p: 0.91, category: "bot" },
+  { name: "Alpha Drops", handle: "alpha_drops42", avatar: "#4a5f86", text: "gm fam ☀️ Been watching how @examplefi_xyz handles yield and honestly it hits different. Instead of one strategy, it blends four. That's what caught my attention. Points campaign is live, don't miss it 👇", verdict: "shill", p: 0.88, category: "shill" },
   { name: "ETH Rewards Team", handle: "ethrewardsteam", avatar: "#7d4b55", text: "Official giveaway! Send 0.1 ETH to our wallet and receive 1 ETH back instantly. Guaranteed. DM your wallet recovery phrase to verify eligibility.", verdict: "scam", p: 0.96, category: "scam" }
 ];
 
@@ -69,8 +70,11 @@ async function region(page, from, to, pad = 0) {
 }
 
 const profile = await mkdtemp(join(tmpdir(), "store-assets-"));
+// Headless Chromium on some machines draws no frames, so screenshots never finish.
+// STORE_HEADED=1 runs a visible browser instead, for example under xvfb-run.
+const headless = process.env.STORE_HEADED !== "1";
 const context = await chromium.launchPersistentContext(profile, {
-  headless: true,
+  headless,
   ...(process.env.CHROME_EXECUTABLE ? { executablePath: process.env.CHROME_EXECUTABLE } : { channel: "chromium" }),
   args: [`--disable-extensions-except=${project}`, `--load-extension=${project}`],
   deviceScaleFactor: 2
@@ -91,6 +95,7 @@ try {
 
   // Setup page before and after the key.
   const setup = await context.newPage();
+  await setup.bringToFront();
   await setup.emulateMedia({ colorScheme: "dark" });
   await setup.setViewportSize({ width: 620, height: 900 });
   await setup.goto(`chrome-extension://${id}/options/options.html`);
@@ -102,12 +107,13 @@ try {
 
   // The feed with every verdict type flagged.
   const page = await context.newPage();
+  await page.bringToFront();
   await page.emulateMedia({ colorScheme: "dark" });
-  await page.setViewportSize({ width: 640, height: 1400 });
+  await page.setViewportSize({ width: 640, height: 1600 });
   await page.goto("https://x.com/home");
-  await page.waitForFunction(() => document.querySelectorAll("[data-scroll-guard-host]").length === 4, null, { timeout: 30000 });
+  await page.waitForFunction(() => document.querySelectorAll("[data-scroll-guard-host]").length === 5, null, { timeout: 30000 });
   await page.waitForTimeout(400);
-  await page.screenshot({ path: join(shots, "feed.png"), clip: await region(page, "article:nth-of-type(1)", "article:nth-of-type(5)") });
+  await page.screenshot({ path: join(shots, "feed.png"), clip: await region(page, "article:nth-of-type(1)", "article:nth-of-type(6)") });
   const slopPost = page.locator("article").nth(1);
   await slopPost.locator("[data-scroll-guard-host]").evaluate((host) => host.shadowRoot.querySelector(".summary").click());
   await page.waitForTimeout(300);
@@ -116,9 +122,12 @@ try {
 
   // The popup, with the demo posts counted.
   const popup = await context.newPage();
+  await popup.bringToFront();
   await popup.emulateMedia({ colorScheme: "dark" });
   await popup.setViewportSize({ width: 300, height: 200 });
   await popup.goto(`chrome-extension://${id}/popup/popup.html`);
+  // A headed browser draws scrollbars, which a real popup sized to fit does not show.
+  await popup.addStyleTag({ content: "html, body { scrollbar-width: none; overflow: hidden; }" });
   await popup.waitForTimeout(300);
   const height = await popup.evaluate(() => document.documentElement.scrollHeight);
   await popup.setViewportSize({ width: 300, height });
@@ -145,13 +154,13 @@ const frame = ({ title, body, shot, width }) => `<!doctype html><html><head><met
 <h1>${title}</h1><p>${body}</p></div><div class="shot"><img src="${image(shot)}"></div></body></html>`;
 
 const slides = [
-  { file: "screenshot-1-feed.png", title: "See slop, bots, and scams as you scroll.", body: "Each flagged post gets a colored frame and a short verdict: AI slop, clickbait, bot spam, or scam.", shot: "feed.png", width: 520 },
+  { file: "screenshot-1-feed.png", title: "See slop, shills, bots, and scams as you scroll.", body: "Each flagged post gets a colored frame and a short verdict: AI slop, shilling, clickbait, bot spam, or scam.", shot: "feed.png", width: 520 },
   { file: "screenshot-2-evidence.png", title: "Every flag explains itself.", body: "Open a verdict to see the strongest pattern Jev found. Block the account in one click, with X's own confirmation.", shot: "evidence.png", width: 640 },
-  { file: "screenshot-3-popup.png", title: "Choose what to flag.", body: "Turn each type on or off, set how strict it is, and see what it caught in the last 24 hours.", shot: "popup.png", width: 330 },
+  { file: "screenshot-3-popup.png", title: "Choose what to flag.", body: "Turn each type on or off, set your own threshold, and see what it caught in the last 24 hours.", shot: "popup.png", width: 330 },
   { file: "screenshot-4-setup.png", title: "Your key, your costs.", body: "Paste your own Jev API key. It is tested before saving and never leaves your device except to call Jev.", shot: "setup.png", width: 520 }
 ];
 
-const browser = await chromium.launch();
+const browser = await chromium.launch({ headless });
 try {
   const page = await browser.newPage({ deviceScaleFactor: 1 });
   await page.setViewportSize({ width: 1280, height: 800 });
@@ -168,7 +177,7 @@ try {
     img { width:56px; height:56px; margin-bottom:18px; }
     h1 { font-size:30px; letter-spacing:-0.025em; margin:0 0 6px; font-weight:650; }
     p { margin:0; color:#9a9a9a; }
-  </style></head><body><img src="data:image/png;base64,${icon}"><h1>Scroll Guard</h1><p>Flags AI slop, clickbait, bot spam, and scams on X.</p></body></html>`);
+  </style></head><body><img src="data:image/png;base64,${icon}"><h1>Scroll Guard</h1><p>Flags AI slop, shilling, clickbait, bot spam, and scams on X.</p></body></html>`);
   await page.waitForTimeout(150);
   await page.screenshot({ path: join(out, "promo-small-440x280.png") });
 } finally {
