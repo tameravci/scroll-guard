@@ -10,19 +10,28 @@ button that opens X's own confirmation. It never blocks anything automatically.
 patterns adapted from the No AI Slop guide, such as binary contrasts, faux-insight
 setups, colon reveals, puffery, and fake-profound kickers. People write these
 patterns too, so a verdict is evidence, not proof of authorship. Jev makes every
-decision; the extension runs no local rules.
+decision except one: text repeated word for word is flagged on your device.
 
 ## Install (2 minutes)
 
-1. Download the [latest release zip](../../releases/latest) and unzip it (or `git clone` this repo).
-2. Open `chrome://extensions` in Chrome.
-3. Toggle **Developer mode** on (top right).
-4. Click **Load unpacked** and select the unzipped folder.
-5. The setup page opens. Paste your Jev API key from
+1. Install [Scroll Guard from the Chrome Web Store](https://chromewebstore.google.com/detail/aaeijennaopjfffmidbckonmnnogpgac).
+2. The setup page opens. Paste your Jev API key from
    [console.typesafe.ai/keys](https://console.typesafe.ai/keys) and click **Save key**.
-6. Open [x.com](https://x.com) and scroll. Flagged posts get a colored frame and a verdict.
+3. Open [x.com](https://x.com) and scroll. Flagged posts get a colored frame and a verdict.
 
 Click the extension icon to pause it, choose which types to flag, or set how strict it is.
+
+## Install from source
+
+Use this to run the latest code or to work on the extension. Chrome does not update
+an extension that you load this way, so repeat these steps for each new version.
+
+1. Run `git clone https://github.com/tameravci/scroll-guard.git`, or download and
+   unzip the [latest release zip](../../releases/latest).
+2. Open `chrome://extensions` in Chrome.
+3. Turn on **Developer mode** (top right).
+4. Click **Load unpacked** and select the folder.
+5. Finish with steps 2 and 3 above.
 
 ## Bring your own key
 
